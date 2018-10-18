@@ -994,6 +994,56 @@ int CMPTransaction::interpretPacket()
     return (PKT_ERROR -100);
 }
 
+int CMPTransaction::interpretFreezeTx()
+{
+    int ret = 0;
+    if (!interpret_Transaction()) {
+        return (PKT_ERROR -2);
+    }
+    LOCK(cs_tally);
+
+    switch (type) {
+        case MSC_TYPE_CREATE_PROPERTY_MANUAL: {
+            uint32_t propertyId = _my_sps->findSPByTX(txid);
+            if(propertyId == 0)
+            {
+                PrintToLog("%s(): ERROR: propertyid is zero!\n", __func__);
+                return (PKT_ERROR_TOKENS - 24);
+            }
+            if (ucFreezingFlag) {
+                enableFreezing(propertyId, block);
+            }
+            break;
+        }
+        case MSC_TYPE_FREEZE_PROPERTY_TOKENS: {
+            ret = logicMath_FreezeTokens();
+            break;
+        }
+        case MSC_TYPE_UNFREEZE_PROPERTY_TOKENS:{
+            ret = logicMath_UnfreezeTokens();
+            break;
+        }
+    }
+    return ret;
+}
+
+bool CMPTransaction::isFreezeEnable()
+{
+    memcpy(&prev_prop_id, &pkt[7], 4);
+    swapByteOrder32(prev_prop_id);
+    const CConsensusParams& params = ConsensusParams();
+
+    if(block >= params.WHC_FREEZENACTIVATE_BLOCK)
+    {
+        ucFreezingFlag = prev_prop_id & 0x00000001;
+        prev_prop_id = prev_prop_id >> 1;
+    }
+    else {
+        ucFreezingFlag = 0;
+    }
+    return ucFreezingFlag;
+}
+
 // change_101 insert a entry to global state, when one address burn BCH to get WHC.
 int CMPTransaction::logicMath_burnBCHGetWHC()
 {
@@ -1145,6 +1195,10 @@ int CMPTransaction::logicMath_SimpleSend()
         receiver = sender;
     }
 
+    if (isAddressFrozen(sender, property)) {
+        PrintToLog("%s(): REJECTED: address %s is frozen for property %d\n", __func__, sender, property);
+        return (PKT_ERROR -3);
+    }
     // Move the tokens
     assert(update_tally_map(sender, property, -nValue, BALANCE));
     assert(update_tally_map(receiver, property, nValue, BALANCE));
@@ -1174,7 +1228,10 @@ int CMPTransaction::logicMath_BuyToken()
         PrintToLog("%s(): rejected: property %d does not exist\n", __func__, property);
         return (PKT_ERROR_SEND -24);
     }
-
+    if (isAddressFrozen(sender, property)) {
+        PrintToLog("%s(): rejected: property %d is frozen\n", __func__, property);
+        return (PKT_ERROR -3);
+    }
     int64_t nBalance = getMPbalance(sender, property, BALANCE);
     if (nBalance < (int64_t) nValue) {
         PrintToLog("%s(): rejected: sender %s has insufficient balance of property %d [%s < %s]\n",
@@ -1310,6 +1367,11 @@ int CMPTransaction::logicMath_SendToOwners()
     if (!IsPropertyIdValid(property)) {
         PrintToLog("%s(): rejected: property %d does not exist\n", __func__, property);
         return (PKT_ERROR_STO -24);
+    }
+
+    if (isAddressFrozen(sender, property)) {
+        PrintToLog("%s(): rejected: property %d is frozen\n", __func__, property);
+        return (PKT_ERROR -3);
     }
 
     if (!IsPropertyIdValid(distribution_property)) {
@@ -1851,7 +1913,7 @@ int CMPTransaction::logicMath_CreatePropertyFixed()
     //change_002
     if (0 != prev_prop_id) {
         PrintToLog("%s(): rejected: do not support prev_prop_id parameters %d\n", __func__, prev_prop_id);
-        return false;
+        return (PKT_ERROR_SP -51);
     }
 
     int64_t money = getMPbalance(sender, OMNI_PROPERTY_WHC, BALANCE);
@@ -1961,7 +2023,7 @@ int CMPTransaction::logicMath_CreatePropertyVariable()
 
     if (0 != prev_prop_id) {
         PrintToLog("%s(): rejected: do not support prev_prop_id parameters %d\n", __func__, prev_prop_id);
-        return false;
+        return (PKT_ERROR_SP -51);
     }
 
     if ('\0' == name[0]) {
@@ -2123,7 +2185,7 @@ int CMPTransaction::logicMath_CreatePropertyManaged()
 
     if (0 != prev_prop_id) {
         PrintToLog("%s(): rejected: do not support prev_prop_id parameters %d\n", __func__, prev_prop_id);
-        return false;
+        return (PKT_ERROR_SP -51);
     }
 
     if ('\0' == name[0]) {
@@ -2397,6 +2459,11 @@ int CMPTransaction::logicMath_ChangeIssuer()
         return (PKT_ERROR_TOKENS -45);
     }
 
+    if(isAddressFrozen(receiver, property))
+    {
+        PrintToLog("%s(): rejected: receiver is frozen\n", __func__);
+        return (PKT_ERROR_SP -45);
+    }
 
     if (NULL != getCrowd(receiver)) {
         PrintToLog("%s(): rejected: receiver %s has an active crowdsale\n", __func__, receiver);
@@ -2572,7 +2639,7 @@ int CMPTransaction::logicMath_FreezeTokens()
     if(sender == receiver)
     {
         PrintToLog("%s(): rejected: freezed address %s cannot be the same with the issuer %s\n", __func__, receiver, sender);
-        return (PKT_ERROR_TOKENS -43);
+        return (PKT_ERROR_TOKENS -51);
     }
     if (!isFreezingEnabled(property, block)) {
         PrintToLog("%s(): rejected: freezing is not enabled for property %d\n", __func__, property);
@@ -2634,7 +2701,7 @@ int CMPTransaction::logicMath_UnfreezeTokens()
     if(sender == receiver)
     {
         PrintToLog("%s(): rejected: unfreezed address %s cannot be the same with the issuer %s\n", __func__, receiver, sender);
-        return (PKT_ERROR_TOKENS -43);
+        return (PKT_ERROR_TOKENS -51);
     }
     if (!isFreezingEnabled(property, block)) {
         PrintToLog("%s(): rejected: freezing is not enabled for property %d\n", __func__, property);
