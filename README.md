@@ -21,11 +21,17 @@ Contention in Wormhole SV
 -----------------
 
 A: https://twitter.com/proffaustus/status/1033983239470415873?lang=en
+
 B: https://twitter.com/proffaustus/status/1034355089002192902?lang=en
+
 C: https://twitter.com/ProfFaustus/status/1034111531447922695
+
 D: https://twitter.com/ProfFaustus/status/1032519312223940609
+
 E: https://twitter.com/ProfFaustus/status/1056212907913109505
+
 F: https://twitter.com/ProfFaustus/status/1033977359827972096
+
 G: https://twitter.com/proffaustus/status/1034190833124352000
 
 Our roadmap includes adding our own BCH SV burn address to create SV-WHC and allow for the continued operation of Wormhole on Bitcoin SV. We believe in the work performed by the hard working team behind Wormhole, nChain, BMG, and Coingeek and feel that together we can make Wormhole function as a valuable token proposal on Bitcoin SV. We feel Dr Craig Wright's above communication is simply outlining his views due to his competiting academic papers and widely respected patents. It is our opinion that he feels there may be a better solution. That may very well be; however, until given the direct request to halt work on this project, we'll continue as Tokens on Bitcoin are highly needed for the future growth of BCH.
