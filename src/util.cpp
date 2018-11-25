@@ -195,10 +195,7 @@ void ArgsManager::ParseParameters(int argc, const char *const argv[]) {
 
 std::vector<std::string> ArgsManager::GetArgs(const std::string &strArg) {
     LOCK(cs_args);
-    if (IsArgSet(strArg)) {
-        return mapMultiArgs.at(strArg);
-    }
-    return {};
+    return mapMultiArgs.at(strArg);
 }
 
 bool ArgsManager::IsArgSet(const std::string &strArg) {
@@ -563,14 +560,10 @@ fs::path GetSpecialFolderPath(int nFolder, bool fCreate) {
 #endif
 
 void runCommand(const std::string &strCommand) {
-    if (strCommand.empty()) {
-        return;
-    }
     int nErr = ::system(strCommand.c_str());
-    if (nErr) {
+    if (nErr)
         LogPrintf("runCommand error: system(%s) returned %d\n", strCommand,
                   nErr);
-    }
 }
 
 void RenameThread(const char *name) {

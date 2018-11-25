@@ -506,14 +506,9 @@ static UniValue createrawtransaction(const Config &config,
         uint256 txid = ParseHashO(o, "txid");
 
         const UniValue &vout_v = find_value(o, "vout");
-        if (vout_v.isNull()) {
-            throw JSONRPCError(RPC_INVALID_PARAMETER,
-                               "Invalid parameter, missing vout key");
-        }
-
         if (!vout_v.isNum()) {
             throw JSONRPCError(RPC_INVALID_PARAMETER,
-                               "Invalid parameter, vout must be a number");
+                               "Invalid parameter, missing vout key");
         }
 
         int nOutput = vout_v.get_int();
@@ -550,7 +545,7 @@ static UniValue createrawtransaction(const Config &config,
             std::vector<uint8_t> data =
                 ParseHexV(sendTo[name_].getValStr(), "Data");
 
-            CTxOut out(Amount::zero(), CScript() << OP_RETURN << data);
+            CTxOut out(Amount(0), CScript() << OP_RETURN << data);
             rawTx.vout.push_back(out);
         } else {
             CTxDestination destination =
@@ -947,7 +942,7 @@ static UniValue signrawtransaction(const Config &config,
 
                 CTxOut txout;
                 txout.scriptPubKey = scriptPubKey;
-                txout.nValue = Amount::zero();
+                txout.nValue = Amount(0);
                 if (prevOut.exists("amount")) {
                     txout.nValue =
                         AmountFromValue(find_value(prevOut, "amount"));
@@ -1131,7 +1126,7 @@ static UniValue sendrawtransaction(const Config &config,
     bool fLimitFree = false;
     Amount nMaxRawTxFee = maxTxFee;
     if (request.params.size() > 1 && request.params[1].get_bool()) {
-        nMaxRawTxFee = Amount::zero();
+        nMaxRawTxFee = Amount(0);
     }
 
     CCoinsViewCache &view = *pcoinsTip;
@@ -1179,7 +1174,7 @@ static UniValue sendrawtransaction(const Config &config,
 }
 
 // clang-format off
-static const ContextFreeRPCCommand commands[] = {
+static const CRPCCommand commands[] = {
     //  category            name                      actor (function)        okSafeMode
     //  ------------------- ------------------------  ----------------------  ----------
     { "rawtransactions",    "getrawtransaction",      getrawtransaction,      true,  {"txid","verbose"} },

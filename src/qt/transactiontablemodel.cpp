@@ -40,13 +40,13 @@ static int column_alignments[] = {
 struct TxLessThan {
     bool operator()(const TransactionRecord &a,
                     const TransactionRecord &b) const {
-        return a.txid < b.txid;
+        return a.hash < b.hash;
     }
-    bool operator()(const TransactionRecord &a, const TxId &b) const {
-        return a.txid < b;
+    bool operator()(const TransactionRecord &a, const uint256 &b) const {
+        return a.hash < b;
     }
-    bool operator()(const TxId &a, const TransactionRecord &b) const {
-        return a < b.txid;
+    bool operator()(const uint256 &a, const TransactionRecord &b) const {
+        return a < b.hash;
     }
 };
 
@@ -65,18 +65,19 @@ public:
      */
     QList<TransactionRecord> cachedWallet;
 
-    /**
-     * Query entire wallet anew from core.
+    /* Query entire wallet anew from core.
      */
     void refreshWallet() {
         qDebug() << "TransactionTablePriv::refreshWallet";
         cachedWallet.clear();
-
-        LOCK2(cs_main, wallet->cs_wallet);
-        for (const std::pair<TxId, CWalletTx> &p : wallet->mapWallet) {
-            if (TransactionRecord::showTransaction(p.second)) {
-                cachedWallet.append(
-                    TransactionRecord::decomposeTransaction(wallet, p.second));
+        {
+            LOCK2(cs_main, wallet->cs_wallet);
+            for (std::map<uint256, CWalletTx>::iterator it =
+                     wallet->mapWallet.begin();
+                 it != wallet->mapWallet.end(); ++it) {
+                if (TransactionRecord::showTransaction(it->second))
+                    cachedWallet.append(TransactionRecord::decomposeTransaction(
+                        wallet, it->second));
             }
         }
     }
@@ -86,29 +87,25 @@ public:
      * the wallet with that of the core.
      * Call with transaction that was added, removed or changed.
      */
-    void updateWallet(const TxId &txid, int status, bool showTransaction) {
+    void updateWallet(const uint256 &hash, int status, bool showTransaction) {
         qDebug() << "TransactionTablePriv::updateWallet: " +
-                        QString::fromStdString(txid.ToString()) + " " +
+                        QString::fromStdString(hash.ToString()) + " " +
                         QString::number(status);
 
         // Find bounds of this transaction in model
         QList<TransactionRecord>::iterator lower = qLowerBound(
-            cachedWallet.begin(), cachedWallet.end(), txid, TxLessThan());
+            cachedWallet.begin(), cachedWallet.end(), hash, TxLessThan());
         QList<TransactionRecord>::iterator upper = qUpperBound(
-            cachedWallet.begin(), cachedWallet.end(), txid, TxLessThan());
+            cachedWallet.begin(), cachedWallet.end(), hash, TxLessThan());
         int lowerIndex = (lower - cachedWallet.begin());
         int upperIndex = (upper - cachedWallet.begin());
         bool inModel = (lower != upper);
 
         if (status == CT_UPDATED) {
-            // Not in model, but want to show, treat as new.
-            if (showTransaction && !inModel) {
-                status = CT_NEW;
-            }
-            // In model, but want to hide, treat as deleted.
-            if (!showTransaction && inModel) {
-                status = CT_DELETED;
-            }
+            /* Not in model, but want to show, treat as new */
+            if (showTransaction && !inModel) status = CT_NEW;
+            /* In model, but want to hide, treat as deleted */
+            if (!showTransaction && inModel) status = CT_DELETED;
         }
 
         qDebug() << "    inModel=" + QString::number(inModel) +
@@ -128,8 +125,8 @@ public:
                 if (showTransaction) {
                     LOCK2(cs_main, wallet->cs_wallet);
                     // Find transaction in wallet
-                    std::map<TxId, CWalletTx>::iterator mi =
-                        wallet->mapWallet.find(txid);
+                    std::map<uint256, CWalletTx>::iterator mi =
+                        wallet->mapWallet.find(hash);
                     if (mi == wallet->mapWallet.end()) {
                         qWarning() << "TransactionTablePriv::updateWallet: "
                                       "Warning: Got CT_NEW, but transaction is "
@@ -192,8 +189,8 @@ public:
             if (lockMain) {
                 TRY_LOCK(wallet->cs_wallet, lockWallet);
                 if (lockWallet && rec->statusUpdateNeeded()) {
-                    std::map<TxId, CWalletTx>::iterator mi =
-                        wallet->mapWallet.find(rec->txid);
+                    std::map<uint256, CWalletTx>::iterator mi =
+                        wallet->mapWallet.find(rec->hash);
 
                     if (mi != wallet->mapWallet.end()) {
                         rec->updateStatus(mi->second);
@@ -206,20 +203,21 @@ public:
     }
 
     QString describe(TransactionRecord *rec, int unit) {
-        LOCK2(cs_main, wallet->cs_wallet);
-        std::map<TxId, CWalletTx>::iterator mi =
-            wallet->mapWallet.find(rec->txid);
-        if (mi != wallet->mapWallet.end()) {
-            return TransactionDesc::toHTML(wallet, mi->second, rec, unit);
+        {
+            LOCK2(cs_main, wallet->cs_wallet);
+            std::map<uint256, CWalletTx>::iterator mi =
+                wallet->mapWallet.find(rec->hash);
+            if (mi != wallet->mapWallet.end()) {
+                return TransactionDesc::toHTML(wallet, mi->second, rec, unit);
+            }
         }
-
         return QString();
     }
 
     QString getTxHex(TransactionRecord *rec) {
         LOCK2(cs_main, wallet->cs_wallet);
-        std::map<TxId, CWalletTx>::iterator mi =
-            wallet->mapWallet.find(rec->txid);
+        std::map<uint256, CWalletTx>::iterator mi =
+            wallet->mapWallet.find(rec->hash);
         if (mi != wallet->mapWallet.end()) {
             std::string strHex =
                 EncodeHexTx(static_cast<CTransaction>(mi->second));
@@ -260,7 +258,7 @@ void TransactionTableModel::updateAmountColumnTitle() {
 
 void TransactionTableModel::updateTransaction(const QString &hash, int status,
                                               bool showTransaction) {
-    TxId updated;
+    uint256 updated;
     updated.SetHex(hash.toStdString());
 
     priv->updateWallet(updated, status, showTransaction);
@@ -501,11 +499,10 @@ TransactionTableModel::txStatusDecoration(const TransactionRecord *wtx) const {
 
 QVariant TransactionTableModel::txWatchonlyDecoration(
     const TransactionRecord *wtx) const {
-    if (wtx->involvesWatchAddress) {
+    if (wtx->involvesWatchAddress)
         return QIcon(":/icons/eye");
-    }
-
-    return QVariant();
+    else
+        return QVariant();
 }
 
 QString
@@ -521,10 +518,7 @@ TransactionTableModel::formatTooltip(const TransactionRecord *rec) const {
 }
 
 QVariant TransactionTableModel::data(const QModelIndex &index, int role) const {
-    if (!index.isValid()) {
-        return QVariant();
-    }
-
+    if (!index.isValid()) return QVariant();
     TransactionRecord *rec =
         static_cast<TransactionRecord *>(index.internalPointer());
 
@@ -570,7 +564,7 @@ QVariant TransactionTableModel::data(const QModelIndex &index, int role) const {
                 case ToAddress:
                     return formatTxToAddress(rec, true);
                 case Amount:
-                    return qint64((rec->credit + rec->debit) / SATOSHI);
+                    return qint64((rec->credit + rec->debit).GetSatoshis());
             }
             break;
         case Qt::ToolTipRole:
@@ -588,7 +582,7 @@ QVariant TransactionTableModel::data(const QModelIndex &index, int role) const {
                 return COLOR_UNCONFIRMED;
             }
             if (index.column() == Amount &&
-                (rec->credit + rec->debit) < ::Amount::zero()) {
+                (rec->credit + rec->debit) < ::Amount(0)) {
                 return COLOR_NEGATIVE;
             }
             if (index.column() == ToAddress) {
@@ -612,11 +606,11 @@ QVariant TransactionTableModel::data(const QModelIndex &index, int role) const {
             return walletModel->getAddressTableModel()->labelForAddress(
                 QString::fromStdString(rec->address));
         case AmountRole:
-            return qint64((rec->credit + rec->debit) / SATOSHI);
+            return qint64((rec->credit + rec->debit).GetSatoshis());
         case TxIDRole:
             return rec->getTxID();
         case TxHashRole:
-            return QString::fromStdString(rec->txid.ToString());
+            return QString::fromStdString(rec->hash.ToString());
         case TxHexRole:
             return priv->getTxHex(rec);
         case TxPlainTextRole: {
@@ -636,9 +630,9 @@ QVariant TransactionTableModel::data(const QModelIndex &index, int role) const {
                 details.append(" ");
             }
             if (!rec->address.empty()) {
-                if (txLabel.isEmpty()) {
+                if (txLabel.isEmpty())
                     details.append(tr("(no label)") + " ");
-                } else {
+                else {
                     details.append("(");
                     details.append(txLabel);
                     details.append(") ");
@@ -713,12 +707,12 @@ void TransactionTableModel::updateDisplayUnit() {
 struct TransactionNotification {
 public:
     TransactionNotification() {}
-    TransactionNotification(TxId _txid, ChangeType _status,
+    TransactionNotification(uint256 _hash, ChangeType _status,
                             bool _showTransaction)
-        : txid(_txid), status(_status), showTransaction(_showTransaction) {}
+        : hash(_hash), status(_status), showTransaction(_showTransaction) {}
 
     void invoke(QObject *ttm) {
-        QString strHash = QString::fromStdString(txid.GetHex());
+        QString strHash = QString::fromStdString(hash.GetHex());
         qDebug() << "NotifyTransactionChanged: " + strHash +
                         " status= " + QString::number(status);
         QMetaObject::invokeMethod(ttm, "updateTransaction",
@@ -728,7 +722,7 @@ public:
     }
 
 private:
-    TxId txid;
+    uint256 hash;
     ChangeType status;
     bool showTransaction;
 };
@@ -737,17 +731,17 @@ static bool fQueueNotifications = false;
 static std::vector<TransactionNotification> vQueueNotifications;
 
 static void NotifyTransactionChanged(TransactionTableModel *ttm,
-                                     CWallet *wallet, const TxId &txid,
+                                     CWallet *wallet, const uint256 &hash,
                                      ChangeType status) {
     // Find transaction in wallet
-    std::map<TxId, CWalletTx>::iterator mi = wallet->mapWallet.find(txid);
+    std::map<uint256, CWalletTx>::iterator mi = wallet->mapWallet.find(hash);
     // Determine whether to show transaction or not (determine this here so that
     // no relocking is needed in GUI thread)
     bool inWallet = mi != wallet->mapWallet.end();
     bool showTransaction =
         (inWallet && TransactionRecord::showTransaction(mi->second));
 
-    TransactionNotification notification(txid, status, showTransaction);
+    TransactionNotification notification(hash, status, showTransaction);
 
     if (fQueueNotifications) {
         vQueueNotifications.push_back(notification);
@@ -758,30 +752,24 @@ static void NotifyTransactionChanged(TransactionTableModel *ttm,
 
 static void ShowProgress(TransactionTableModel *ttm, const std::string &title,
                          int nProgress) {
-    if (nProgress == 0) {
-        fQueueNotifications = true;
-    }
+    if (nProgress == 0) fQueueNotifications = true;
 
     if (nProgress == 100) {
         fQueueNotifications = false;
-        if (vQueueNotifications.size() > 10) {
-            // prevent balloon spam, show maximum 10 balloons
+        if (vQueueNotifications.size() >
+            10) // prevent balloon spam, show maximum 10 balloons
             QMetaObject::invokeMethod(ttm, "setProcessingQueuedTransactions",
                                       Qt::QueuedConnection, Q_ARG(bool, true));
-        }
-
-        for (size_t i = 0; i < vQueueNotifications.size(); ++i) {
-            if (vQueueNotifications.size() - i <= 10) {
+        for (unsigned int i = 0; i < vQueueNotifications.size(); ++i) {
+            if (vQueueNotifications.size() - i <= 10)
                 QMetaObject::invokeMethod(
                     ttm, "setProcessingQueuedTransactions",
                     Qt::QueuedConnection, Q_ARG(bool, false));
-            }
 
             vQueueNotifications[i].invoke(ttm);
         }
-
-        // clear
-        std::vector<TransactionNotification>().swap(vQueueNotifications);
+        std::vector<TransactionNotification>().swap(
+            vQueueNotifications); // clear
     }
 }
 

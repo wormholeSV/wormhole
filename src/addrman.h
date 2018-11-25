@@ -22,6 +22,7 @@
  * Extended statistics about a CAddress
  */
 class CAddrInfo : public CAddress {
+
 public:
     //! last try whatsoever by us (memory only)
     int64_t nLastTry;
@@ -326,9 +327,10 @@ public:
         s << nUBuckets;
         std::map<int, int> mapUnkIds;
         int nIds = 0;
-        for (const std::pair<int, CAddrInfo> p : mapInfo) {
-            mapUnkIds[p.first] = nIds;
-            const CAddrInfo &info = p.second;
+        for (std::map<int, CAddrInfo>::const_iterator it = mapInfo.begin();
+             it != mapInfo.end(); it++) {
+            mapUnkIds[(*it).first] = nIds;
+            const CAddrInfo &info = (*it).second;
             if (info.nRefCount) {
                 // this means nNew was wrong, oh ow
                 assert(nIds != nNew);
@@ -337,8 +339,9 @@ public:
             }
         }
         nIds = 0;
-        for (const std::pair<int, CAddrInfo> p : mapInfo) {
-            const CAddrInfo &info = p.second;
+        for (std::map<int, CAddrInfo>::const_iterator it = mapInfo.begin();
+             it != mapInfo.end(); it++) {
+            const CAddrInfo &info = (*it).second;
             if (info.fInTried) {
                 // this means nTried was wrong, oh ow
                 assert(nIds != nTried);
@@ -370,11 +373,9 @@ public:
         s >> nVersion;
         uint8_t nKeySize;
         s >> nKeySize;
-        if (nKeySize != 32) {
+        if (nKeySize != 32)
             throw std::ios_base::failure(
                 "Incorrect keysize in addrman deserialization");
-        }
-
         s >> nKey;
         s >> nNew;
         s >> nTried;
@@ -517,9 +518,8 @@ public:
         {
             LOCK(cs);
             int err;
-            if ((err = Check_())) {
+            if ((err = Check_()))
                 LogPrintf("ADDRMAN CONSISTENCY CHECK FAILED!!! err=%i\n", err);
-            }
         }
 #endif
     }
@@ -532,10 +532,9 @@ public:
         Check();
         fRet |= Add_(addr, source, nTimePenalty);
         Check();
-        if (fRet) {
+        if (fRet)
             LogPrint(BCLog::ADDRMAN, "Added %s from %s: %i tried, %i new\n",
                      addr.ToStringIPPort(), source.ToString(), nTried, nNew);
-        }
         return fRet;
     }
 
@@ -545,15 +544,14 @@ public:
         LOCK(cs);
         int nAdd = 0;
         Check();
-        for (const CAddress &a : vAddr) {
-            nAdd += Add_(a, source, nTimePenalty) ? 1 : 0;
-        }
+        for (std::vector<CAddress>::const_iterator it = vAddr.begin();
+             it != vAddr.end(); it++)
+            nAdd += Add_(*it, source, nTimePenalty) ? 1 : 0;
         Check();
-        if (nAdd) {
+        if (nAdd)
             LogPrint(BCLog::ADDRMAN,
                      "Added %i addresses from %s: %i tried, %i new\n", nAdd,
                      source.ToString(), nTried, nNew);
-        }
         return nAdd > 0;
     }
 

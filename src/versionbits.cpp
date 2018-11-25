@@ -12,6 +12,10 @@ const struct BIP9DeploymentInfo
             /*.name =*/"testdummy",
             /*.gbt_force =*/true,
         },
+        {
+            /*.name =*/"csv",
+            /*.gbt_force =*/true,
+        },
 };
 
 ThresholdState AbstractThresholdConditionChecker::GetStateFor(

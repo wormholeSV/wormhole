@@ -22,7 +22,8 @@ from test_framework.cdefs import (ONE_MEGABYTE, LEGACY_MAX_BLOCK_SIZE,
                                   MAX_BLOCK_SIGOPS_PER_MB, MAX_TX_SIGOPS_COUNT)
 from collections import deque
 
-REPLAY_PROTECTION_START_TIME = 2000000000
+# far into the future
+MONOLITH_START_TIME = 2000000000
 
 
 class PreviousSpendableOutput():
@@ -46,8 +47,11 @@ class FullBlockTest(ComparisonTestFramework):
         self.blocks = {}
         self.excessive_block_size = 100 * ONE_MEGABYTE
         self.extra_args = [['-whitelist=127.0.0.1',
-                            "-replayprotectionactivationtime=%d" % REPLAY_PROTECTION_START_TIME,
-                            "-excessiveblocksize=%d" % self.excessive_block_size]]
+                            "-monolithactivationtime=%d" % MONOLITH_START_TIME,
+                            "-replayprotectionactivationtime=%d" % (
+                                2 * MONOLITH_START_TIME),
+                            "-excessiveblocksize=%d"
+                            % self.excessive_block_size]]
 
     def add_options(self, parser):
         super().add_options(parser)
@@ -61,6 +65,7 @@ class FullBlockTest(ComparisonTestFramework):
         NetworkThread().start()
         # Set the blocksize to 2MB as initial condition
         self.nodes[0].setexcessiveblock(self.excessive_block_size)
+        self.nodes[0].setmocktime(MONOLITH_START_TIME)
         self.test.run()
 
     def add_transactions_to_block(self, block, tx_list):
@@ -244,10 +249,41 @@ class FullBlockTest(ComparisonTestFramework):
             out.append(get_spendable_output())
 
         # Let's build some blocks and test them.
-        for i in range(16):
+        for i in range(15):
             n = i + 1
-            block(n, spend=out[i], block_size=n * ONE_MEGABYTE)
+            block(n, spend=out[i], block_size=n * ONE_MEGABYTE // 2)
             yield accepted()
+
+        # Start moving MTP forward
+        bfork = block(5555, out[15], block_size=8 * ONE_MEGABYTE)
+        bfork.nTime = MONOLITH_START_TIME - 1
+        update_block(5555, [])
+        yield accepted()
+
+        # Get to one block of the May 15, 2018 HF activation
+        for i in range(5):
+            block(5100 + i)
+            test.blocks_and_transactions.append([self.tip, True])
+        yield test
+
+        # Check that the MTP is just before the configured fork point.
+        assert_equal(node.getblockheader(node.getbestblockhash())['mediantime'],
+                     MONOLITH_START_TIME - 1)
+
+        # Before we acivate the May 15, 2018 HF, 8MB is the limit.
+        block(4444, spend=out[16], block_size=8 * ONE_MEGABYTE + 1)
+        yield rejected(RejectResult(16, b'bad-blk-length'))
+
+        # Rewind bad block.
+        tip(5104)
+
+        # Actiavte the May 15, 2018 HF
+        block(5556)
+        yield accepted()
+
+        # Now MTP is exactly the fork time. Bigger blocks are now accepted.
+        assert_equal(node.getblockheader(node.getbestblockhash())['mediantime'],
+                     MONOLITH_START_TIME)
 
         # block of maximal size
         block(17, spend=out[16], block_size=self.excessive_block_size)

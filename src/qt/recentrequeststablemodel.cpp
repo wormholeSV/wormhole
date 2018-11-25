@@ -71,7 +71,7 @@ QVariant RecentRequestsTableModel::data(const QModelIndex &index,
                     return rec->recipient.message;
                 }
             case Amount:
-                if (rec->recipient.amount == ::Amount::zero() &&
+                if (rec->recipient.amount == ::Amount(0) &&
                     role == Qt::DisplayRole)
                     return tr("(no amount requested)");
                 else if (role == Qt::EditRole)

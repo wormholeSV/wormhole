@@ -6,7 +6,6 @@
 #include "bitcoinaddressvalidator.h"
 
 #include "cashaddr.h"
-#include "config.h"
 #include "dstencode.h"
 
 /* Base58 characters are:
@@ -85,8 +84,7 @@ QValidator::State BitcoinAddressCheckValidator::validate(QString &input,
     Q_UNUSED(pos);
 
     // Validate the passed Bitcoin address
-    if (IsValidDestinationString(input.toStdString(),
-                                 GetConfig().GetChainParams())) {
+    if (IsValidDestinationString(input.toStdString())) {
         return QValidator::Acceptable;
     }
 

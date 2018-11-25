@@ -3622,6 +3622,10 @@
         <translation>Upozornění</translation>
     </message>
     <message>
+        <source>Warning: unknown new rules activated (versionbit %i)</source>
+        <translation>Upozornění: aktivována neznámá nová pravidla (verzový bit %i)</translation>
+    </message>
+    <message>
         <source>Whether to operate in a blocks only mode (default: %u)</source>
         <translation>Zda fungovat v čistě blokovém režimu (výchozí: %u)</translation>
     </message>

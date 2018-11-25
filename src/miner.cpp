@@ -10,10 +10,8 @@
 #include "chainparams.h"
 #include "coins.h"
 #include "config.h"
-#include "consensus/activation.h"
 #include "consensus/consensus.h"
 #include "consensus/merkle.h"
-#include "consensus/tx_verify.h"
 #include "consensus/validation.h"
 #include "hash.h"
 #include "net.h"
@@ -34,6 +32,8 @@
 
 #include <boost/thread.hpp>
 #include <boost/tuple/tuple.hpp>
+
+static const int MAX_COINBASE_SCRIPTSIG_SIZE = 100;
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -87,13 +87,20 @@ static uint64_t ComputeMaxGeneratedBlockSize(const Config &config,
         std::max(uint64_t(1000), std::min(config.GetMaxBlockSize() - 1000,
                                           nMaxGeneratedBlockSize));
 
+    // If May 15, 2018 HF is not activated yet, we also want to limit the max
+    // generated block size to 8MB - 1000
+    if (!IsMonolithEnabled(config, pindexPrev)) {
+        nMaxGeneratedBlockSize =
+            std::min(8 * ONE_MEGABYTE - 1000, nMaxGeneratedBlockSize);
+    }
+
     return nMaxGeneratedBlockSize;
 }
 
 BlockAssembler::BlockAssembler(const Config &_config) : config(&_config) {
 
     if (gArgs.IsArgSet("-blockmintxfee")) {
-        Amount n = Amount::zero();
+        Amount n(0);
         ParseMoney(gArgs.GetArg("-blockmintxfee", ""), n);
         blockMinFeeRate = CFeeRate(n);
     } else {
@@ -114,9 +121,10 @@ void BlockAssembler::resetBlock() {
 
     // These counters do not include coinbase tx.
     nBlockTx = 0;
-    nFees = Amount::zero();
+    nFees = Amount(0);
 
     lastFewTxs = 0;
+    blockFinished = false;
 }
 
 static const std::vector<uint8_t>
@@ -144,7 +152,7 @@ BlockAssembler::CreateNewBlock(const CScript &scriptPubKeyIn) {
     // Add dummy coinbase tx as first transaction.
     pblock->vtx.emplace_back();
     // updated at end
-    pblocktemplate->vTxFees.push_back(-SATOSHI);
+    pblocktemplate->vTxFees.push_back(Amount(-1));
     // updated at end
     pblocktemplate->vTxSigOpsCount.push_back(-1);
 
@@ -164,26 +172,15 @@ BlockAssembler::CreateNewBlock(const CScript &scriptPubKeyIn) {
     pblock->nTime = GetAdjustedTime();
     nMaxGeneratedBlockSize = ComputeMaxGeneratedBlockSize(*config, pindexPrev);
 
-    nMedianTimePast = pindexPrev->GetMedianTimePast();
     nLockTimeCutoff =
         (STANDARD_LOCKTIME_VERIFY_FLAGS & LOCKTIME_MEDIAN_TIME_PAST)
-            ? nMedianTimePast
+            ? pindexPrev->GetMedianTimePast()
             : pblock->GetBlockTime();
 
     addPriorityTxs();
     int nPackagesSelected = 0;
     int nDescendantsUpdated = 0;
     addPackageTxs(nPackagesSelected, nDescendantsUpdated);
-
-    if (IsMagneticAnomalyEnabled(*config, pindexPrev)) {
-        // If magnetic anomaly is enabled, we make sure transaction are
-        // canonically ordered.
-        std::sort(std::begin(pblock->vtx) + 1, std::end(pblock->vtx),
-                  [](const std::shared_ptr<const CTransaction> &a,
-                     const std::shared_ptr<const CTransaction> &b) -> bool {
-                      return a->GetId() < b->GetId();
-                  });
-    }
 
     int64_t nTime1 = GetTimeMicros();
 
@@ -199,15 +196,6 @@ BlockAssembler::CreateNewBlock(const CScript &scriptPubKeyIn) {
     coinbaseTx.vout[0].nValue =
         nFees + GetBlockSubsidy(nHeight, chainparams.GetConsensus());
     coinbaseTx.vin[0].scriptSig = CScript() << nHeight << OP_0;
-
-    // Make sure the coinbase is big enough.
-    uint64_t coinbaseSize =
-        ::GetSerializeSize(coinbaseTx, SER_NETWORK, PROTOCOL_VERSION);
-    if (coinbaseSize < MIN_TX_SIZE) {
-        coinbaseTx.vin[0].scriptSig
-            << std::vector<uint8_t>(MIN_TX_SIZE - coinbaseSize - 1);
-    }
-
     pblock->vtx[0] = MakeTransactionRef(coinbaseTx);
     pblocktemplate->vTxFees[0] = -1 * nFees;
 
@@ -222,11 +210,12 @@ BlockAssembler::CreateNewBlock(const CScript &scriptPubKeyIn) {
     UpdateTime(pblock, *config, pindexPrev);
     pblock->nBits = GetNextWorkRequired(pindexPrev, pblock, *config);
     pblock->nNonce = 0;
-    pblocktemplate->vTxSigOpsCount[0] = GetSigOpCountWithoutP2SH(
-        *pblock->vtx[0], STANDARD_CHECKDATASIG_VERIFY_FLAGS);
+    pblocktemplate->vTxSigOpsCount[0] =
+        GetSigOpCountWithoutP2SH(*pblock->vtx[0]);
 
     CValidationState state;
-    BlockValidationOptions validationOptions(false, false);
+    BlockValidationOptions validationOptions =
+        BlockValidationOptions(false, false);
     if (!TestBlockValidity(*config, state, *pblock, pindexPrev,
                            validationOptions)) {
         throw std::runtime_error(strprintf("%s: TestBlockValidity failed: %s",
@@ -270,12 +259,10 @@ bool BlockAssembler::TestPackage(uint64_t packageSize, int64_t packageSigOps) {
     if (blockSizeWithPackage >= nMaxGeneratedBlockSize) {
         return false;
     }
-
     if (nBlockSigOps + packageSigOps >=
         GetMaxBlockSigOpsCount(blockSizeWithPackage)) {
         return false;
     }
-
     return true;
 }
 
@@ -290,7 +277,7 @@ bool BlockAssembler::TestPackageTransactions(
     for (const CTxMemPool::txiter it : package) {
         CValidationState state;
         if (!ContextualCheckTransaction(*config, it->GetTx(), state, nHeight,
-                                        nLockTimeCutoff, nMedianTimePast)) {
+                                        nLockTimeCutoff)) {
             return false;
         }
 
@@ -306,21 +293,19 @@ bool BlockAssembler::TestPackageTransactions(
     return true;
 }
 
-BlockAssembler::TestForBlockResult
-BlockAssembler::TestForBlock(CTxMemPool::txiter it) {
+bool BlockAssembler::TestForBlock(CTxMemPool::txiter it) {
     auto blockSizeWithTx =
         nBlockSize +
         ::GetSerializeSize(it->GetTx(), SER_NETWORK, PROTOCOL_VERSION);
     if (blockSizeWithTx >= nMaxGeneratedBlockSize) {
         if (nBlockSize > nMaxGeneratedBlockSize - 100 || lastFewTxs > 50) {
-            return TestForBlockResult::BlockFinished;
+            blockFinished = true;
+            return false;
         }
-
         if (nBlockSize > nMaxGeneratedBlockSize - 1000) {
             lastFewTxs++;
         }
-
-        return TestForBlockResult::TXCantFit;
+        return false;
     }
 
     auto maxBlockSigOps = GetMaxBlockSigOpsCount(blockSizeWithTx);
@@ -330,23 +315,23 @@ BlockAssembler::TestForBlock(CTxMemPool::txiter it) {
         // TODO: We should consider adding another transaction that isn't very
         // dense in sigops instead of bailing out so easily.
         if (nBlockSigOps > maxBlockSigOps - 2) {
-            return TestForBlockResult::BlockFinished;
+            blockFinished = true;
+            return false;
         }
-
         // Otherwise attempt to find another tx with fewer sigops to put in the
         // block.
-        return TestForBlockResult::TXCantFit;
+        return false;
     }
 
     // Must check that lock times are still valid. This can be removed once MTP
     // is always enforced as long as reorgs keep the mempool consistent.
     CValidationState state;
     if (!ContextualCheckTransaction(*config, it->GetTx(), state, nHeight,
-                                    nLockTimeCutoff, nMedianTimePast)) {
-        return TestForBlockResult::TXCantFit;
+                                    nLockTimeCutoff)) {
+        return false;
     }
 
-    return TestForBlockResult::TXFits;
+    return true;
 }
 
 void BlockAssembler::AddToBlock(CTxMemPool::txiter iter) {
@@ -384,7 +369,6 @@ int BlockAssembler::UpdatePackagesForAdded(
             if (alreadyAdded.count(desc)) {
                 continue;
             }
-
             ++nDescendantsUpdated;
             modtxiter mit = mapModifiedTx.find(desc);
             if (mit == mapModifiedTx.end()) {
@@ -398,7 +382,6 @@ int BlockAssembler::UpdatePackagesForAdded(
             }
         }
     }
-
     return nDescendantsUpdated;
 }
 
@@ -540,7 +523,6 @@ void BlockAssembler::addPackageTxs(int &nPackagesSelected,
                 // while.
                 break;
             }
-
             continue;
         }
 
@@ -616,7 +598,7 @@ void BlockAssembler::addPriorityTxs() {
 
     // Add a tx from priority queue to fill the part of block reserved to
     // priority transactions.
-    while (!vecPriority.empty()) {
+    while (!vecPriority.empty() && !blockFinished) {
         iter = vecPriority.front().second;
         actualPriority = vecPriority.front().first;
         std::pop_heap(vecPriority.begin(), vecPriority.end(), pricomparer);
@@ -636,42 +618,30 @@ void BlockAssembler::addPriorityTxs() {
             continue;
         }
 
-        TestForBlockResult testResult = TestForBlock(iter);
-        // Break if the block is completed
-        if (testResult == TestForBlockResult::BlockFinished) {
-            break;
-        }
+        // If this tx fits in the block add it, otherwise keep looping.
+        if (TestForBlock(iter)) {
+            AddToBlock(iter);
 
-        // If this tx does not fit in the block, skip to next transaction.
-        if (testResult != TestForBlockResult::TXFits) {
-            continue;
-        }
-
-        AddToBlock(iter);
-
-        // If now that this txs is added we've surpassed our desired priority
-        // size, then we're done adding priority transactions.
-        if (nBlockSize >= nBlockPrioritySize) {
-            break;
-        }
-
-        // if we have dropped below the AllowFreeThreshold, then we're done
-        // adding priority transactions.
-        if (!AllowFree(actualPriority)) {
-            break;
-        }
-
-        // This tx was successfully added, so add transactions that depend
-        // on this one to the priority queue to try again.
-        for (CTxMemPool::txiter child : mempool.GetMemPoolChildren(iter)) {
-            waitPriIter wpiter = waitPriMap.find(child);
-            if (wpiter == waitPriMap.end()) {
-                continue;
+            // If now that this txs is added we've surpassed our desired
+            // priority size or have dropped below the AllowFreeThreshold, then
+            // we're done adding priority txs.
+            if (nBlockSize >= nBlockPrioritySize ||
+                !AllowFree(actualPriority)) {
+                break;
             }
 
-            vecPriority.push_back(TxCoinAgePriority(wpiter->second, child));
-            std::push_heap(vecPriority.begin(), vecPriority.end(), pricomparer);
-            waitPriMap.erase(wpiter);
+            // This tx was successfully added, so add transactions that depend
+            // on this one to the priority queue to try again.
+            for (CTxMemPool::txiter child : mempool.GetMemPoolChildren(iter)) {
+                waitPriIter wpiter = waitPriMap.find(child);
+                if (wpiter != waitPriMap.end()) {
+                    vecPriority.push_back(
+                        TxCoinAgePriority(wpiter->second, child));
+                    std::push_heap(vecPriority.begin(), vecPriority.end(),
+                                   pricomparer);
+                    waitPriMap.erase(wpiter);
+                }
+            }
         }
     }
 }
@@ -685,7 +655,6 @@ void IncrementExtraNonce(const Config &config, CBlock *pblock,
         nExtraNonce = 0;
         hashPrevBlock = pblock->hashPrevBlock;
     }
-
     ++nExtraNonce;
     // Height first in coinbase required for block.version=2
     unsigned int nHeight = pindexPrev->nHeight + 1;

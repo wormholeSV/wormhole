@@ -30,8 +30,9 @@ std::string CTxIn::ToString() const {
 }
 
 std::string CTxOut::ToString() const {
-    return strprintf("CTxOut(nValue=%d.%08d, scriptPubKey=%s)", nValue / COIN,
-                     (nValue % COIN) / SATOSHI,
+    return strprintf("CTxOut(nValue=%d.%08d, scriptPubKey=%s)",
+                     nValue.GetSatoshis() / COIN.GetSatoshis(),
+                     nValue.GetSatoshis() % COIN.GetSatoshis(),
                      HexStr(scriptPubKey).substr(0, 30));
 }
 
@@ -72,14 +73,13 @@ CTransaction::CTransaction(CMutableTransaction &&tx)
       nLockTime(tx.nLockTime), hash(ComputeHash()) {}
 
 Amount CTransaction::GetValueOut() const {
-    Amount nValueOut = Amount::zero();
+    Amount nValueOut(0);
     for (std::vector<CTxOut>::const_iterator it(vout.begin()); it != vout.end();
          ++it) {
         nValueOut += it->nValue;
-        if (!MoneyRange(it->nValue) || !MoneyRange(nValueOut)) {
+        if (!MoneyRange(it->nValue) || !MoneyRange(nValueOut))
             throw std::runtime_error(std::string(__func__) +
                                      ": value out of range");
-        }
     }
     return nValueOut;
 }
@@ -87,9 +87,7 @@ Amount CTransaction::GetValueOut() const {
 double CTransaction::ComputePriority(double dPriorityInputs,
                                      unsigned int nTxSize) const {
     nTxSize = CalculateModifiedSize(nTxSize);
-    if (nTxSize == 0) {
-        return 0.0;
-    }
+    if (nTxSize == 0) return 0.0;
 
     return dPriorityInputs / nTxSize;
 }
@@ -101,15 +99,12 @@ unsigned int CTransaction::CalculateModifiedSize(unsigned int nTxSize) const {
     // for priority. Providing any more cleanup incentive than making additional
     // inputs free would risk encouraging people to create junk outputs to
     // redeem later.
-    if (nTxSize == 0) {
-        nTxSize = GetTotalSize();
-    }
-    for (const auto &nVin : vin) {
+    if (nTxSize == 0) nTxSize = GetTotalSize();
+    for (std::vector<CTxIn>::const_iterator it(vin.begin()); it != vin.end();
+         ++it) {
         unsigned int offset =
-            41U + std::min(110U, (unsigned int)nVin.scriptSig.size());
-        if (nTxSize > offset) {
-            nTxSize -= offset;
-        }
+            41U + std::min(110U, (unsigned int)it->scriptSig.size());
+        if (nTxSize > offset) nTxSize -= offset;
     }
     return nTxSize;
 }
@@ -124,11 +119,9 @@ std::string CTransaction::ToString() const {
                      "nLockTime=%u)\n",
                      GetId().ToString().substr(0, 10), nVersion, vin.size(),
                      vout.size(), nLockTime);
-    for (const auto &nVin : vin) {
-        str += "    " + nVin.ToString() + "\n";
-    }
-    for (const auto &nVout : vout) {
-        str += "    " + nVout.ToString() + "\n";
-    }
+    for (unsigned int i = 0; i < vin.size(); i++)
+        str += "    " + vin[i].ToString() + "\n";
+    for (unsigned int i = 0; i < vout.size(); i++)
+        str += "    " + vout[i].ToString() + "\n";
     return str;
 }

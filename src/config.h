@@ -6,7 +6,6 @@
 #define BITCOIN_CONFIG_H
 
 #include "amount.h"
-#include "feerate.h"
 
 #include <boost/noncopyable.hpp>
 
@@ -32,11 +31,6 @@ public:
 
     virtual void SetMinFeePerKB(CFeeRate amt) = 0;
     virtual CFeeRate GetMinFeePerKB() const = 0;
-
-    virtual void SetRPCUserAndPassword(std::string userAndPassword) = 0;
-    virtual std::string GetRPCUserAndPassword() const = 0;
-    virtual void SetRPCCORSDomain(std::string corsDomain) = 0;
-    virtual std::string GetRPCCORSDomain() const = 0;
 };
 
 class GlobalConfig final : public Config {
@@ -55,11 +49,6 @@ public:
 
     void SetMinFeePerKB(CFeeRate amt) override;
     CFeeRate GetMinFeePerKB() const override;
-
-    void SetRPCUserAndPassword(std::string userAndPassword) override;
-    std::string GetRPCUserAndPassword() const override;
-    void SetRPCCORSDomain(std::string corsDomain) override;
-    std::string GetRPCCORSDomain() const override;
 
 private:
     bool useCashAddr;
@@ -86,17 +75,10 @@ public:
     bool UseCashAddrEncoding() const override { return false; }
 
     void SetExcessUTXOCharge(Amount amt) override {}
-    Amount GetExcessUTXOCharge() const override { return Amount::zero(); }
+    Amount GetExcessUTXOCharge() const override { return Amount(0); }
 
     void SetMinFeePerKB(CFeeRate amt) override{};
-    CFeeRate GetMinFeePerKB() const override {
-        return CFeeRate(Amount::zero());
-    }
-
-    void SetRPCUserAndPassword(std::string userAndPassword) override{};
-    std::string GetRPCUserAndPassword() const override { return ""; };
-    void SetRPCCORSDomain(std::string corsDomain) override{};
-    std::string GetRPCCORSDomain() const override { return ""; };
+    CFeeRate GetMinFeePerKB() const override { return CFeeRate(Amount(0)); }
 
 private:
     std::unique_ptr<CChainParams> chainParams;

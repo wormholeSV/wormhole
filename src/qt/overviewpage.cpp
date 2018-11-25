@@ -53,9 +53,7 @@ public:
             index.data(TransactionTableModel::DateRole).toDateTime();
         QString address = index.data(Qt::DisplayRole).toString();
         Amount amount(
-            int64_t(
-                index.data(TransactionTableModel::AmountRole).toLongLong()) *
-            SATOSHI);
+            index.data(TransactionTableModel::AmountRole).toLongLong());
         bool confirmed =
             index.data(TransactionTableModel::ConfirmedRole).toBool();
         QVariant value = index.data(Qt::ForegroundRole);
@@ -79,7 +77,7 @@ public:
             iconWatchonly.paint(painter, watchonlyRect);
         }
 
-        if (amount < Amount::zero()) {
+        if (amount < Amount(0)) {
             foreground = COLOR_NEGATIVE;
         } else if (!confirmed) {
             foreground = COLOR_UNCONFIRMED;
@@ -110,24 +108,24 @@ public:
     int unit;
     const PlatformStyle *platformStyle;
 };
-
 #include "overviewpage.moc"
 
 OverviewPage::OverviewPage(const PlatformStyle *platformStyle, QWidget *parent)
     : QWidget(parent), ui(new Ui::OverviewPage), clientModel(0), walletModel(0),
-      currentBalance(-SATOSHI), currentUnconfirmedBalance(-SATOSHI),
-      currentImmatureBalance(-SATOSHI), currentWatchOnlyBalance(-SATOSHI),
-      currentWatchUnconfBalance(-SATOSHI),
-      currentWatchImmatureBalance(-SATOSHI),
+      currentBalance(-1), currentUnconfirmedBalance(-1),
+      currentImmatureBalance(-1), currentWatchOnlyBalance(-1),
+      currentWatchUnconfBalance(-1), currentWatchImmatureBalance(-1),
       txdelegate(new TxViewDelegate(platformStyle, this)) {
     ui->setupUi(this);
 
     // use a SingleColorIcon for the "out of sync warning" icon
     QIcon icon = platformStyle->SingleColorIcon(":/icons/warning");
-    // also set the disabled icon because we are using a disabled QPushButton to
-    // work around missing HiDPI support of QLabel
-    // (https://bugreports.qt.io/browse/QTBUG-42503)
-    icon.addPixmap(icon.pixmap(QSize(64, 64), QIcon::Normal), QIcon::Disabled);
+    icon.addPixmap(
+        icon.pixmap(QSize(64, 64), QIcon::Normal),
+        QIcon::Disabled); // also set the disabled icon because we are using a
+                          // disabled QPushButton to work around missing HiDPI
+                          // support of QLabel
+                          // (https://bugreports.qt.io/browse/QTBUG-42503)
     ui->labelTransactionsStatus->setIcon(icon);
     ui->labelWalletStatus->setIcon(icon);
 
@@ -195,8 +193,8 @@ void OverviewPage::setBalance(const Amount balance,
     // only show immature (newly mined) balance if it's non-zero, so as not to
     // complicate things
     // for the non-mining users
-    bool showImmature = immatureBalance != Amount::zero();
-    bool showWatchOnlyImmature = watchImmatureBalance != Amount::zero();
+    bool showImmature = immatureBalance != Amount(0);
+    bool showWatchOnlyImmature = watchImmatureBalance != Amount(0);
 
     // for symmetry reasons also show immature label when the watch-only one is
     // shown
@@ -208,22 +206,19 @@ void OverviewPage::setBalance(const Amount balance,
 
 // show/hide watch-only labels
 void OverviewPage::updateWatchOnlyLabels(bool showWatchOnly) {
-    // show spendable label (only when watch-only is active)
-    ui->labelSpendable->setVisible(showWatchOnly);
-    // show watch-only label
-    ui->labelWatchonly->setVisible(showWatchOnly);
-    // show watch-only balance separator line
-    ui->lineWatchBalance->setVisible(showWatchOnly);
-    // show watch-only available balance
-    ui->labelWatchAvailable->setVisible(showWatchOnly);
-    // show watch-only pending balance
-    ui->labelWatchPending->setVisible(showWatchOnly);
-    // show watch-only total balance
-    ui->labelWatchTotal->setVisible(showWatchOnly);
+    ui->labelSpendable->setVisible(
+        showWatchOnly); // show spendable label (only when watch-only is active)
+    ui->labelWatchonly->setVisible(showWatchOnly); // show watch-only label
+    ui->lineWatchBalance->setVisible(
+        showWatchOnly); // show watch-only balance separator line
+    ui->labelWatchAvailable->setVisible(
+        showWatchOnly); // show watch-only available balance
+    ui->labelWatchPending->setVisible(
+        showWatchOnly); // show watch-only pending balance
+    ui->labelWatchTotal->setVisible(
+        showWatchOnly); // show watch-only total balance
 
-    if (!showWatchOnly) {
-        ui->labelWatchImmature->hide();
-    }
+    if (!showWatchOnly) ui->labelWatchImmature->hide();
 }
 
 void OverviewPage::setClientModel(ClientModel *model) {
@@ -275,11 +270,10 @@ void OverviewPage::setWalletModel(WalletModel *model) {
 
 void OverviewPage::updateDisplayUnit() {
     if (walletModel && walletModel->getOptionsModel()) {
-        if (currentBalance != -SATOSHI) {
+        if (currentBalance != Amount(-1))
             setBalance(currentBalance, currentUnconfirmedBalance,
                        currentImmatureBalance, currentWatchOnlyBalance,
                        currentWatchUnconfBalance, currentWatchImmatureBalance);
-        }
 
         // Update txdelegate->unit with the current unit
         txdelegate->unit = walletModel->getOptionsModel()->getDisplayUnit();

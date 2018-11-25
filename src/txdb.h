@@ -6,11 +6,9 @@
 #ifndef BITCOIN_TXDB_H
 #define BITCOIN_TXDB_H
 
-#include "blockfileinfo.h"
 #include "chain.h"
 #include "coins.h"
 #include "dbwrapper.h"
-#include "diskblockpos.h"
 
 #include <map>
 #include <string>
@@ -20,7 +18,6 @@
 class CBlockIndex;
 class CCoinsViewDBCursor;
 class uint256;
-class Config;
 
 //! No need to periodic flush if at least this much space still available.
 static constexpr int MAX_BLOCK_COINSDB_USAGE = 10;
@@ -128,7 +125,6 @@ public:
     bool WriteFlag(const std::string &name, bool fValue);
     bool ReadFlag(const std::string &name, bool &fValue);
     bool LoadBlockIndexGuts(
-        const Config &config,
         std::function<CBlockIndex *(const uint256 &)> insertBlockIndex);
 };
 

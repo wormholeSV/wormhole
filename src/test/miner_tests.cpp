@@ -1,5 +1,4 @@
 // Copyright (c) 2011-2016 The Bitcoin Core developers
-// Copyright (c) 2017-2018 The Bitcoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -10,7 +9,6 @@
 #include "config.h"
 #include "consensus/consensus.h"
 #include "consensus/merkle.h"
-#include "consensus/tx_verify.h"
 #include "consensus/validation.h"
 #include "policy/policy.h"
 #include "pubkey.h"
@@ -96,22 +94,22 @@ void TestPackageSelection(Config &config, CScript scriptPubKey,
     tx.vin[0].scriptSig = CScript() << OP_1;
     tx.vin[0].prevout = COutPoint(txFirst[0]->GetId(), 0);
     tx.vout.resize(1);
-    tx.vout[0].nValue = int64_t(5000000000LL - 1000) * SATOSHI;
+    tx.vout[0].nValue = Amount(5000000000LL - 1000);
     // This tx has a low fee: 1000 satoshis.
     // Save this txid for later use.
     TxId parentTxId = tx.GetId();
     mempool.addUnchecked(parentTxId,
-                         entry.Fee(1000 * SATOSHI)
+                         entry.Fee(Amount(1000))
                              .Time(GetTime())
                              .SpendsCoinbase(true)
                              .FromTx(tx));
 
     // This tx has a medium fee: 10000 satoshis.
     tx.vin[0].prevout = COutPoint(txFirst[1]->GetId(), 0);
-    tx.vout[0].nValue = int64_t(5000000000LL - 10000) * SATOSHI;
+    tx.vout[0].nValue = Amount(5000000000LL - 10000);
     TxId mediumFeeTxId = tx.GetId();
     mempool.addUnchecked(mediumFeeTxId,
-                         entry.Fee(10000 * SATOSHI)
+                         entry.Fee(Amount(10000))
                              .Time(GetTime())
                              .SpendsCoinbase(true)
                              .FromTx(tx));
@@ -119,10 +117,10 @@ void TestPackageSelection(Config &config, CScript scriptPubKey,
     // This tx has a high fee, but depends on the first transaction.
     tx.vin[0].prevout = COutPoint(parentTxId, 0);
     // 50k satoshi fee.
-    tx.vout[0].nValue = int64_t(5000000000LL - 1000 - 50000) * SATOSHI;
+    tx.vout[0].nValue = Amount(5000000000LL - 1000 - 50000);
     TxId highFeeTxId = tx.GetId();
     mempool.addUnchecked(highFeeTxId,
-                         entry.Fee(50000 * SATOSHI)
+                         entry.Fee(Amount(50000))
                              .Time(GetTime())
                              .SpendsCoinbase(false)
                              .FromTx(tx));
@@ -136,18 +134,17 @@ void TestPackageSelection(Config &config, CScript scriptPubKey,
     // Test that a package below the block min tx fee doesn't get included
     tx.vin[0].prevout = COutPoint(highFeeTxId, 0);
     // 0 fee.
-    tx.vout[0].nValue = int64_t(5000000000LL - 1000 - 50000) * SATOSHI;
+    tx.vout[0].nValue = Amount(5000000000LL - 1000 - 50000);
     TxId freeTxId = tx.GetId();
-    mempool.addUnchecked(freeTxId, entry.Fee(Amount::zero()).FromTx(tx));
+    mempool.addUnchecked(freeTxId, entry.Fee(Amount(0)).FromTx(tx));
     size_t freeTxSize = ::GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION);
 
     // Calculate a fee on child transaction that will put the package just
     // below the block min tx fee (assuming 1 child tx of the same size).
-    Amount feeToUse = blockMinFeeRate.GetFee(2 * freeTxSize) - SATOSHI;
+    Amount feeToUse = blockMinFeeRate.GetFee(2 * freeTxSize) - Amount(1);
 
     tx.vin[0].prevout = COutPoint(freeTxId, 0);
-    tx.vout[0].nValue =
-        int64_t(5000000000LL - 1000 - 50000) * SATOSHI - feeToUse;
+    tx.vout[0].nValue = Amount(5000000000LL - 1000 - 50000) - feeToUse;
     TxId lowFeeTxId = tx.GetId();
     mempool.addUnchecked(lowFeeTxId, entry.Fee(feeToUse).FromTx(tx));
     pblocktemplate = BlockAssembler(config).CreateNewBlock(scriptPubKey);
@@ -162,10 +159,10 @@ void TestPackageSelection(Config &config, CScript scriptPubKey,
     // transaction and replace with a higher fee transaction
     mempool.removeRecursive(CTransaction(tx));
     // Now we should be just over the min relay fee.
-    tx.vout[0].nValue -= 2 * SATOSHI;
+    tx.vout[0].nValue -= Amount(2);
     lowFeeTxId = tx.GetId();
     mempool.addUnchecked(lowFeeTxId,
-                         entry.Fee(feeToUse + 2 * SATOSHI).FromTx(tx));
+                         entry.Fee(feeToUse + Amount(2)).FromTx(tx));
     pblocktemplate = BlockAssembler(config).CreateNewBlock(scriptPubKey);
     BOOST_CHECK(pblocktemplate->block.vtx[4]->GetId() == freeTxId);
     BOOST_CHECK(pblocktemplate->block.vtx[5]->GetId() == lowFeeTxId);
@@ -175,18 +172,18 @@ void TestPackageSelection(Config &config, CScript scriptPubKey,
     // 0-fee transaction that has 2 outputs.
     tx.vin[0].prevout = COutPoint(txFirst[2]->GetId(), 0);
     tx.vout.resize(2);
-    tx.vout[0].nValue = int64_t(5000000000LL - 100000000) * SATOSHI;
+    tx.vout[0].nValue = Amount(5000000000LL - 100000000);
     // 1BCC output.
-    tx.vout[1].nValue = 100000000 * SATOSHI;
+    tx.vout[1].nValue = Amount(100000000);
     TxId freeTxId2 = tx.GetId();
-    mempool.addUnchecked(
-        freeTxId2, entry.Fee(Amount::zero()).SpendsCoinbase(true).FromTx(tx));
+    mempool.addUnchecked(freeTxId2,
+                         entry.Fee(Amount(0)).SpendsCoinbase(true).FromTx(tx));
 
     // This tx can't be mined by itself.
     tx.vin[0].prevout = COutPoint(freeTxId2, 0);
     tx.vout.resize(1);
     feeToUse = blockMinFeeRate.GetFee(freeTxSize);
-    tx.vout[0].nValue = int64_t(5000000000LL - 100000000) * SATOSHI - feeToUse;
+    tx.vout[0].nValue = Amount(5000000000LL) - Amount(100000000) - feeToUse;
     TxId lowFeeTxId2 = tx.GetId();
     mempool.addUnchecked(lowFeeTxId2,
                          entry.Fee(feeToUse).SpendsCoinbase(false).FromTx(tx));
@@ -202,8 +199,8 @@ void TestPackageSelection(Config &config, CScript scriptPubKey,
     // well.
     tx.vin[0].prevout = COutPoint(freeTxId2, 1);
     // 10k satoshi fee.
-    tx.vout[0].nValue = (100000000 - 10000) * SATOSHI;
-    mempool.addUnchecked(tx.GetId(), entry.Fee(10000 * SATOSHI).FromTx(tx));
+    tx.vout[0].nValue = Amount(100000000 - 10000);
+    mempool.addUnchecked(tx.GetId(), entry.Fee(Amount(10000)).FromTx(tx));
     pblocktemplate = BlockAssembler(config).CreateNewBlock(scriptPubKey);
     BOOST_CHECK(pblocktemplate->block.vtx[8]->GetId() == lowFeeTxId2);
 }
@@ -256,7 +253,7 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity) {
     CScript script;
     uint256 hash;
     TestMemPoolEntryHelper entry;
-    entry.nFee = 11 * SATOSHI;
+    entry.nFee = Amount(11);
     entry.dPriority = 111.0;
     entry.nHeight = 11;
 
@@ -288,12 +285,8 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity) {
         txCoinbase.vout.resize(1);
         txCoinbase.vout[0].scriptPubKey = CScript();
         pblock->vtx[0] = MakeTransactionRef(std::move(txCoinbase));
-        if (txFirst.size() == 0) {
-            baseheight = chainActive.Height();
-        }
-        if (txFirst.size() < 4) {
-            txFirst.push_back(pblock->vtx[0]);
-        }
+        if (txFirst.size() == 0) baseheight = chainActive.Height();
+        if (txFirst.size() < 4) txFirst.push_back(pblock->vtx[0]);
         pblock->hashMerkleRoot = BlockMerkleRoot(*pblock);
         pblock->nNonce = blockinfo[i].nonce;
         std::shared_ptr<const CBlock> shared_pblock =
@@ -418,7 +411,7 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity) {
     tx.vin.resize(1);
     tx.vin[0].prevout = COutPoint();
     tx.vin[0].scriptSig = CScript() << OP_0 << OP_1;
-    tx.vout[0].nValue = Amount::zero();
+    tx.vout[0].nValue = Amount(0);
     hash = tx.GetId();
     // Give it a fee so it'll get mined.
     mempool.addUnchecked(
@@ -622,10 +615,9 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity) {
         // Locktime passes on 2nd block.
         GlobalConfig config;
         CValidationState state;
-        int64_t nMedianTimePast = chainActive.Tip()->GetMedianTimePast();
         BOOST_CHECK(ContextualCheckTransaction(
             config, CTransaction(tx), state, chainActive.Tip()->nHeight + 2,
-            nMedianTimePast, nMedianTimePast));
+            chainActive.Tip()->GetMedianTimePast()));
     }
 
     // Absolute time locked.
@@ -652,10 +644,9 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity) {
         // Locktime passes 1 second later.
         GlobalConfig config;
         CValidationState state;
-        int64_t nMedianTimePast = chainActive.Tip()->GetMedianTimePast() + 1;
         BOOST_CHECK(ContextualCheckTransaction(
             config, CTransaction(tx), state, chainActive.Tip()->nHeight + 1,
-            nMedianTimePast, nMedianTimePast));
+            chainActive.Tip()->GetMedianTimePast() + 1));
     }
 
     // mempool-dependent transactions (not added)
@@ -684,8 +675,8 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity) {
     // Sequence locks fail.
     BOOST_CHECK(!TestSequenceLocks(CTransaction(tx), flags));
 
-    pblocktemplate = BlockAssembler(config).CreateNewBlock(scriptPubKey);
-    BOOST_CHECK(pblocktemplate);
+    BOOST_CHECK(pblocktemplate =
+                    BlockAssembler(config).CreateNewBlock(scriptPubKey));
 
     // None of the of the absolute height/time locked tx should have made it
     // into the template because we still check IsFinalTx in CreateNewBlock, but
@@ -715,7 +706,10 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity) {
     fCheckpointsEnabled = true;
 }
 
-void CheckBlockMaxSize(const Config &config, uint64_t size, uint64_t expected) {
+void CheckBlockMaxSize(const CChainParams &chainparams, uint64_t size,
+                       uint64_t expected) {
+    GlobalConfig config;
+
     gArgs.ForceSetArg("-blockmaxsize", std::to_string(size));
 
     BlockAssembler ba(config);
@@ -724,33 +718,61 @@ void CheckBlockMaxSize(const Config &config, uint64_t size, uint64_t expected) {
 
 BOOST_AUTO_TEST_CASE(BlockAssembler_construction) {
     GlobalConfig config;
+    const CChainParams &chainparams = Params();
 
     // We are working on a fake chain and need to protect ourselves.
     LOCK(cs_main);
 
     // Test around historical 1MB (plus one byte because that's mandatory)
     config.SetMaxBlockSize(ONE_MEGABYTE + 1);
-    CheckBlockMaxSize(config, 0, 1000);
-    CheckBlockMaxSize(config, 1000, 1000);
-    CheckBlockMaxSize(config, 1001, 1001);
-    CheckBlockMaxSize(config, 12345, 12345);
+    CheckBlockMaxSize(chainparams, 0, 1000);
+    CheckBlockMaxSize(chainparams, 1000, 1000);
+    CheckBlockMaxSize(chainparams, 1001, 1001);
+    CheckBlockMaxSize(chainparams, 12345, 12345);
 
-    CheckBlockMaxSize(config, ONE_MEGABYTE - 1001, ONE_MEGABYTE - 1001);
-    CheckBlockMaxSize(config, ONE_MEGABYTE - 1000, ONE_MEGABYTE - 1000);
-    CheckBlockMaxSize(config, ONE_MEGABYTE - 999, ONE_MEGABYTE - 999);
-    CheckBlockMaxSize(config, ONE_MEGABYTE, ONE_MEGABYTE - 999);
+    CheckBlockMaxSize(chainparams, ONE_MEGABYTE - 1001, ONE_MEGABYTE - 1001);
+    CheckBlockMaxSize(chainparams, ONE_MEGABYTE - 1000, ONE_MEGABYTE - 1000);
+    CheckBlockMaxSize(chainparams, ONE_MEGABYTE - 999, ONE_MEGABYTE - 999);
+    CheckBlockMaxSize(chainparams, ONE_MEGABYTE, ONE_MEGABYTE - 999);
+
+    // The maximum block size to be generated before the May 15, 2018 HF
+    static const auto EIGHT_MEGABYTES = 8 * ONE_MEGABYTE;
+    static const auto LEGACY_CAP = EIGHT_MEGABYTES - 1000;
+
+    // Test around historical 8MB cap.
+    config.SetMaxBlockSize(EIGHT_MEGABYTES + 1);
+    CheckBlockMaxSize(chainparams, EIGHT_MEGABYTES - 1001,
+                      EIGHT_MEGABYTES - 1001);
+    CheckBlockMaxSize(chainparams, EIGHT_MEGABYTES - 1000, LEGACY_CAP);
+    CheckBlockMaxSize(chainparams, EIGHT_MEGABYTES - 999, LEGACY_CAP);
+    CheckBlockMaxSize(chainparams, EIGHT_MEGABYTES, EIGHT_MEGABYTES - 1000);
 
     // Test around default cap
     config.SetMaxBlockSize(DEFAULT_MAX_BLOCK_SIZE);
 
+    // We are stuck at the legacy cap before activation.
+    CheckBlockMaxSize(chainparams, DEFAULT_MAX_BLOCK_SIZE, LEGACY_CAP);
+
+    // Activate May 15, 2018 HF the dirty way
+    const int64_t monolithTime =
+        config.GetChainParams().GetConsensus().monolithActivationTime;
+    auto pindex = chainActive.Tip();
+    for (size_t i = 0; pindex && i < 5; i++) {
+        BOOST_CHECK(!IsMonolithEnabled(config, chainActive.Tip()));
+        pindex->nTime = monolithTime;
+        pindex = pindex->pprev;
+    }
+
+    BOOST_CHECK(IsMonolithEnabled(config, chainActive.Tip()));
+
     // Now we can use the default max block size.
-    CheckBlockMaxSize(config, DEFAULT_MAX_BLOCK_SIZE - 1001,
+    CheckBlockMaxSize(chainparams, DEFAULT_MAX_BLOCK_SIZE - 1001,
                       DEFAULT_MAX_BLOCK_SIZE - 1001);
-    CheckBlockMaxSize(config, DEFAULT_MAX_BLOCK_SIZE - 1000,
+    CheckBlockMaxSize(chainparams, DEFAULT_MAX_BLOCK_SIZE - 1000,
                       DEFAULT_MAX_BLOCK_SIZE - 1000);
-    CheckBlockMaxSize(config, DEFAULT_MAX_BLOCK_SIZE - 999,
+    CheckBlockMaxSize(chainparams, DEFAULT_MAX_BLOCK_SIZE - 999,
                       DEFAULT_MAX_BLOCK_SIZE - 1000);
-    CheckBlockMaxSize(config, DEFAULT_MAX_BLOCK_SIZE,
+    CheckBlockMaxSize(chainparams, DEFAULT_MAX_BLOCK_SIZE,
                       DEFAULT_MAX_BLOCK_SIZE - 1000);
 
     // If the parameter is not specified, we use

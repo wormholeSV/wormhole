@@ -4658,6 +4658,11 @@
     </message>
     <message>
         <location line="+1"/>
+        <source>Warning: unknown new rules activated (versionbit %i)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Whether to operate in a blocks only mode (default: %u)</source>
         <translation type="unfinished"></translation>
     </message>

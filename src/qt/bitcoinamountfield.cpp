@@ -24,7 +24,7 @@ class AmountSpinBox : public QAbstractSpinBox {
 public:
     explicit AmountSpinBox(QWidget *parent)
         : QAbstractSpinBox(parent), currentUnit(BitcoinUnits::BCH),
-          singleStep(100000 * SATOSHI) {
+          singleStep(100000 /* satoshis */) {
         setAlignment(Qt::AlignRight);
 
         connect(lineEdit(), SIGNAL(textEdited(QString)), this,
@@ -64,7 +64,7 @@ public:
         bool valid = false;
         Amount val = value(&valid);
         val = val + steps * singleStep;
-        val = qMin(qMax(val, Amount::zero()), BitcoinUnits::maxMoney());
+        val = qMin(qMax(val, Amount(0)), BitcoinUnits::maxMoney());
         setValue(val);
     }
 
@@ -135,17 +135,17 @@ private:
      * @note Must return 0 if !valid.
      */
     Amount parse(const QString &text, bool *valid_out = 0) const {
-        Amount val = Amount::zero();
+        Amount val(0);
         bool valid = BitcoinUnits::parse(currentUnit, text, &val);
         if (valid) {
-            if (val < Amount::zero() || val > BitcoinUnits::maxMoney()) {
+            if (val < Amount(0) || val > BitcoinUnits::maxMoney()) {
                 valid = false;
             }
         }
         if (valid_out) {
             *valid_out = valid;
         }
-        return valid ? val : Amount::zero();
+        return valid ? val : Amount(0);
     }
 
 protected:
@@ -178,7 +178,7 @@ protected:
         bool valid = false;
         Amount val = value(&valid);
         if (valid) {
-            if (val > Amount::zero()) {
+            if (val > Amount(0)) {
                 rv |= StepDownEnabled;
             }
             if (val < BitcoinUnits::maxMoney()) {

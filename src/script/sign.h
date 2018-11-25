@@ -55,10 +55,9 @@ class MutableTransactionSignatureCreator : public TransactionSignatureCreator {
 public:
     MutableTransactionSignatureCreator(const CKeyStore *keystoreIn,
                                        const CMutableTransaction *txToIn,
-                                       unsigned int nInIn,
-                                       const Amount amountIn,
+                                       unsigned int nInIn, const Amount amount,
                                        SigHashType sigHashTypeIn)
-        : TransactionSignatureCreator(keystoreIn, &tx, nInIn, amountIn,
+        : TransactionSignatureCreator(keystoreIn, &tx, nInIn, amount,
                                       sigHashTypeIn),
           tx(*txToIn) {}
 };

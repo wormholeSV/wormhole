@@ -45,10 +45,10 @@ private:
 
 public:
     CachingTransactionSignatureChecker(const CTransaction *txToIn,
-                                       unsigned int nInIn,
-                                       const Amount amountIn, bool storeIn,
+                                       unsigned int nInIn, const Amount amount,
+                                       bool storeIn,
                                        PrecomputedTransactionData &txdataIn)
-        : TransactionSignatureChecker(txToIn, nInIn, amountIn, txdataIn),
+        : TransactionSignatureChecker(txToIn, nInIn, amount, txdataIn),
           store(storeIn) {}
 
     bool VerifySignature(const std::vector<uint8_t> &vchSig,

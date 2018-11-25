@@ -6,8 +6,6 @@
 #include "config/bitcoin-config.h"
 #endif
 
-#include "compat/setenv.h"
-
 #include "bitcoinaddressvalidatortests.h"
 #include "chainparams.h"
 #include "compattests.h"
