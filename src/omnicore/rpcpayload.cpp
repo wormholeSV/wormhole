@@ -861,7 +861,7 @@ UniValue whc_createpayload_unfreeze(const Config &config,const JSONRPCRequest &r
     return HexStr(payload.begin(), payload.end());
 }
 
-static const ContextFreeRPCCommand commands[] =
+static const CRPCCommand commands[] =
 { //  category                         name                                      actor (function)                         okSafeMode
   //  -------------------------------- ----------------------------------------- ---------------------------------------- ----------
     //change_003

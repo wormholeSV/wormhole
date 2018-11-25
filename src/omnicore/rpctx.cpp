@@ -1172,7 +1172,7 @@ UniValue whc_destroyERC721Token(const Config& config, const JSONRPCRequest& requ
     }
 }
 
-static const ContextFreeRPCCommand commands[] =
+static const CRPCCommand commands[] =
 { //  category                             name                            actor (function)               okSafeMode
   //  ------------------------------------ ------------------------------- ------------------------------ ----------
 #ifdef ENABLE_WALLET

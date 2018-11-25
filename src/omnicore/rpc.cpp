@@ -2713,7 +2713,7 @@ UniValue whc_getERC721PropertyDestroyTokens(const Config &config, const JSONRPCR
     return response;
 }
 
-static const ContextFreeRPCCommand commands[] =
+static const CRPCCommand commands[] =
         { //  category                             name                            actor (function)               okSafeMode
                 //  ------------------------------------ ------------------------------- ------------------------------ ----------
                 //change_003
