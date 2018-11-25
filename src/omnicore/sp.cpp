@@ -77,7 +77,7 @@ void CMPSPInfo::Entry::print() const
 
 CMPSPInfo::CMPSPInfo(const boost::filesystem::path& path, bool fWipe)
 {
-	const CChainParams &params = GetConfig().GetChainParams();
+	const CChainParams &params = GlobalConfig::GetConfig().GetChainParams();
     leveldb::Status status = Open(path, fWipe);
     PrintToConsole("Loading smart property database: %s\n", status.ToString());
 

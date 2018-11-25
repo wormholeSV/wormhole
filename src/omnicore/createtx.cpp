@@ -134,7 +134,7 @@ OmniTxBuilder& OmniTxBuilder::addInputs(const std::vector<PrevTxsEntry>& prevTxs
 /** Adds an output for the reference address. */
 OmniTxBuilder& OmniTxBuilder::addReference(const std::string& destination, int64_t value)
 {
-	CChainParams param = GetConfig().GetChainParams();
+	CChainParams param = GlobalConfig::GetConfig().GetChainParams();
 	CTxDestination addr = DecodeCashAddr(destination, param);
     CScript scriptPubKey = GetScriptForDestination(addr);
 
@@ -171,7 +171,7 @@ OmniTxBuilder& OmniTxBuilder::addMultisig(const std::vector<unsigned char>& data
 /** Adds an output for change. */
 OmniTxBuilder& OmniTxBuilder::addChange(const std::string& destination, const CCoinsViewCache& view, int64_t txFee, uint32_t position)
 {
-	CChainParams param = GetConfig().GetChainParams();
+	CChainParams param = GlobalConfig::GetConfig().GetChainParams();
 	CTxDestination addr = DecodeCashAddr(destination, param);
 
     return (OmniTxBuilder&) TxBuilder::addChange(addr, view, txFee, position);

@@ -913,7 +913,7 @@ bool createNewtransaction(CWallet *const pwallet, const std::string &address,
     }
 
     // Parse Bitcoin address
-	const CChainParams& params = GetConfig().GetChainParams();
+	const CChainParams& params = GlobalConfig::GetConfig().GetChainParams();
     CTxDestination dest = DecodeCashAddr(burnwhc_address, params);
     CScript scriptPubKey = GetScriptForDestination(dest);
     CTxDestination no = CNoDestination{};

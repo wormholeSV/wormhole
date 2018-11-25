@@ -24,7 +24,7 @@ int64_t GetDustThreshold(const CScript& scriptPubKey)
 {
     CTxOut txOut(Amount(0), scriptPubKey);
 
-    return txOut.GetDustThreshold(GetConfig().GetMinFeePerKB()).GetSatoshis();
+    return txOut.GetDustThreshold(GlobalConfig::GetConfig().GetMinFeePerKB()).GetSatoshis();
 }
 
 /**

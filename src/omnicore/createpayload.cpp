@@ -477,7 +477,7 @@ std::vector<unsigned char> CreatePayload_FreezeTokens(uint32_t propertyId, uint6
     mastercore::swapByteOrder16(messageVer);
     mastercore::swapByteOrder32(propertyId);
     mastercore::swapByteOrder64(amount);
-    //const CChainParams& params = GetConfig().GetChainParams();
+    //const CChainParams& params = GlobalConfig::GetConfig().GetChainParams();
     //CTxDestination dest = DecodeCashAddr(address, params);
 
     PUSH_BACK_BYTES(payload, messageVer);
@@ -499,7 +499,7 @@ std::vector<unsigned char> CreatePayload_UnfreezeTokens(uint32_t propertyId, uin
     mastercore::swapByteOrder16(messageVer);
     mastercore::swapByteOrder32(propertyId);
     mastercore::swapByteOrder64(amount);
-    //const CChainParams& params = GetConfig().GetChainParams();
+    //const CChainParams& params = GlobalConfig::GetConfig().GetChainParams();
     //CTxDestination dest = DecodeCashAddr(address, params);
     //std::vector<unsigned char> addressBytes = dest.GetHex();
 

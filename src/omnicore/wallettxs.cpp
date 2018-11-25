@@ -38,7 +38,7 @@ bool AddressToPubKey(const std::string& key, CPubKey& pubKey)
 {
 #ifdef ENABLE_WALLET
     // Case 1: Bitcoin address and the key is in the wallet
-	const CChainParams params = GetConfig().GetChainParams();
+	const CChainParams params = GlobalConfig::GetConfig().GetChainParams();
 	CTxDestination address = DecodeCashAddr(key, params);
 	CWalletRef pwalletMain = NULL;
 	if (vpwallets.size() > 0){
@@ -140,7 +140,7 @@ std::string GetAddressLabel(const std::string& address)
 	}
     if (pwalletMain) {
         LOCK(pwalletMain->cs_wallet);
-	const CChainParams& params = GetConfig().GetChainParams();
+	const CChainParams& params = GlobalConfig::GetConfig().GetChainParams();
         CTxDestination addressParsed = DecodeCashAddr(address, params);
         std::map<CTxDestination, CAddressBookData>::const_iterator mi = pwalletMain->mapAddressBook.find(addressParsed);
         if (mi != pwalletMain->mapAddressBook.end()) {
@@ -164,7 +164,7 @@ int IsMyAddress(const std::string& address)
     if (pwalletMain) {
         // TODO: resolve deadlock caused cs_tally, cs_wallet
         // LOCK(pwalletMain->cs_wallet);
-	const CChainParams& params = GetConfig().GetChainParams();
+	const CChainParams& params = GlobalConfig::GetConfig().GetChainParams();
         CTxDestination parsedAddress = DecodeCashAddr(address, params);
         isminetype isMine = IsMine(*pwalletMain, parsedAddress);
 
@@ -206,7 +206,7 @@ static int64_t GetEstimatedFeePerKb()
 static int64_t GetEconomicThreshold(const CTxOut& txOut)
 {
     // Minimum value needed to relay the transaction
-    int64_t nThresholdDust = txOut.GetDustThreshold(GetConfig().GetMinFeePerKB()).GetSatoshis();
+    int64_t nThresholdDust = txOut.GetDustThreshold(GlobalConfig::GetConfig().GetMinFeePerKB()).GetSatoshis();
 
     // Use the estimated fee that is also used to contruct transactions.
     // We use the absolute minimum, so we divide by 3, to get rid of the
@@ -276,7 +276,7 @@ int64_t SelectCoins(const std::string& fromAddress, CCoinControl& coinControl, i
                             __func__, txid.GetHex(), n, txOut.nValue);
                 continue;
             }
-		const CChainParams &params = GetConfig().GetChainParams();
+		const CChainParams &params = GlobalConfig::GetConfig().GetChainParams();
             std::string sAddress = EncodeCashAddr(dest, params);
             if (msc_debug_tokens)
                 PrintToLog("%s: sender: %s, outpoint: %s:%d, value: %d\n", __func__, sAddress, txid.GetHex(), n, txOut.nValue);

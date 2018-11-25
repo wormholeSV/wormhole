@@ -28,7 +28,7 @@ using mastercore::StrToInt64;
 
 std::string ParseAddress(const UniValue& value)
 {
-	const CChainParams &param = GetConfig().GetChainParams();
+	const CChainParams &param = GlobalConfig::GetConfig().GetChainParams();
     CTxDestination addr = DecodeCashAddr(value.get_str(), param);
 	CTxDestination comAddr = CNoDestination{}; 
     if (addr == comAddr){
