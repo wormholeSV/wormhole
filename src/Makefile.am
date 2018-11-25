@@ -1,4 +1,5 @@
 # Copyright (c) 2013-2016 The Bitcoin Core developers
+# Copyright (c) 2018 The Bitcoin SV developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -32,7 +33,6 @@ LIBBITCOIN_CONSENSUS=libwormholed_consensus.a
 LIBBITCOIN_CLI=libwormholed_cli.a
 LIBBITCOIN_UTIL=libwormholed_util.a
 LIBBITCOIN_CRYPTO=crypto/libwormholed_crypto.a
-LIBBITCOINQT=qt/libbitcoinqt.a
 LIBSECP256K1=secp256k1/libsecp256k1.la
 
 if ENABLE_ZMQ
@@ -113,7 +113,6 @@ BITCOIN_CORE_H = \
   cuckoocache.h \
   dstencode.h \
   fs.h \
-  globals.h \
   httprpc.h \
   httpserver.h \
   indirectmap.h \
@@ -194,7 +193,7 @@ obj/build.h: FORCE
 	  "$(abs_top_srcdir)"
 libwormholed_util_a-clientversion.$(OBJEXT): obj/build.h
 
-# server: shared between bitcoind and bitcoin-qt
+# server:
 libwormholed_server_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(MINIUPNPC_CPPFLAGS) $(EVENT_CFLAGS) $(EVENT_PTHREADS_CFLAGS)
 libwormholed_server_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libwormholed_server_a_SOURCES = \
@@ -205,7 +204,6 @@ libwormholed_server_a_SOURCES = \
   chain.cpp \
   checkpoints.cpp \
   config.cpp \
-  globals.cpp \
   httprpc.cpp \
   httpserver.cpp \
   init.cpp \
@@ -249,8 +247,7 @@ libwormholed_zmq_a_SOURCES = \
 endif
 
 
-# wallet: shared between bitcoind and bitcoin-qt, but only linked
-# when wallet enabled
+# wallet: only linked when wallet enabled
 libwormholed_wallet_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 libwormholed_wallet_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libwormholed_wallet_a_SOURCES = \
@@ -313,6 +310,7 @@ libwormholed_consensus_a_SOURCES = \
   script/sighashtype.h \
   script/interpreter.cpp \
   script/interpreter.h \
+  script/script_flags.h \
   script/script.cpp \
   script/script.h \
   script/script_error.cpp \
@@ -325,7 +323,7 @@ libwormholed_consensus_a_SOURCES = \
   utilstrencodings.h \
   version.h
 
-# common: shared between bitcoind, and bitcoin-qt and non-server tools
+# common: shared between bitcoind and non-server tools
 libwormholed_common_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 libwormholed_common_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libwormholed_common_a_SOURCES = \
@@ -338,7 +336,6 @@ libwormholed_common_a_SOURCES = \
   coins.cpp \
   compressor.cpp \
   dstencode.cpp \
-  globals.cpp \
   core_read.cpp \
   core_write.cpp \
   key.cpp \
@@ -383,7 +380,7 @@ if GLIBC_BACK_COMPAT
 libwormholed_util_a_SOURCES += compat/glibc_compat.cpp
 endif
 
-# cli: shared between bitcoin-cli and bitcoin-qt
+# cli:
 libwormholed_cli_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 libwormholed_cli_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libwormholed_cli_a_SOURCES = \
@@ -543,7 +540,7 @@ clean-local:
 
 .mm.o:
 	$(AM_V_CXX) $(OBJCXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
-	  $(CPPFLAGS) $(AM_CXXFLAGS) $(QT_INCLUDES) $(AM_CXXFLAGS) $(PIE_FLAGS) $(CXXFLAGS) -c -o $@ $<
+	  $(CPPFLAGS) $(AM_CXXFLAGS) $(AM_CXXFLAGS) $(PIE_FLAGS) $(CXXFLAGS) -c -o $@ $<
 
 check-symbols: $(bin_PROGRAMS)
 if GLIBC_BACK_COMPAT
@@ -571,14 +568,6 @@ endif
 
 if ENABLE_BENCH
 include Makefile.bench.include
-endif
-
-if ENABLE_QT
-include Makefile.qt.include
-endif
-
-if ENABLE_QT_TESTS
-include Makefile.qttest.include
 endif
 
 # Omni Core

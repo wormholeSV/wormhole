@@ -3,6 +3,8 @@
 project(bitcoin-test)
 
 # Process json files.
+file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/data")
+
 find_program(PYTHON python)
 function(gen_json_header NAME)
 	set(HEADERS "")
@@ -78,7 +80,7 @@ add_test_to_suite(bitcoin test_bitcoin
 	mempool_tests.cpp
 	merkle_tests.cpp
 	miner_tests.cpp
-	monolith_opcodes.cpp
+	opcode_tests.cpp
 	multisig_tests.cpp
 	net_tests.cpp
 	netbase_tests.cpp

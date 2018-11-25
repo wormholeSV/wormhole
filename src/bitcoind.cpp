@@ -32,8 +32,8 @@
  *
  * \section intro_sec Introduction
  *
- * This is the developer documentation of Bitcoin ABC
- * (https://www.bitcoinabc.org/). Bitcoin ABC is a client for the digital
+ * This is the developer documentation of Bitcoin SV
+ * (https://bitcoinsv.io/). Bitcoin SV is a client for the digital
  * currency called Bitcoin Cash (https://www.bitcoincash.org/), which enables
  * instant payments to anyone, anywhere in the world. Bitcoin Cash uses
  * peer-to-peer technology to operate with no central authority: managing
@@ -71,21 +71,20 @@ bool AppInit(int argc, char *argv[]) {
     // FIXME: Ideally, we'd like to build the config here, but that's currently
     // not possible as the whole application has too many global state. However,
     // this is a first step.
-    auto &config = const_cast<Config &>(GetConfig());
+    auto& config = GlobalConfig::GetConfig();
 
     bool fRet = false;
 
     //
     // Parameters
     //
-    // If Qt is used, parameters/bitcoin.conf are parsed in qt/bitcoin.cpp's
     // main()
     gArgs.ParseParameters(argc, argv);
 
     // Process help and version before taking care about datadir
     if (gArgs.IsArgSet("-?") || gArgs.IsArgSet("-h") ||
         gArgs.IsArgSet("-help") || gArgs.IsArgSet("-version")) {
-        std::string strUsage = strprintf(_("%s Daemon"), _(PACKAGE_NAME)) +
+        std::string strUsage = strprintf(_("%s"), _(PACKAGE_NAME)) +
                                " " + _("version") + " " + FormatFullVersion() +
                                "\n";
 
@@ -138,8 +137,7 @@ bool AppInit(int argc, char *argv[]) {
                             "instead.\n");
             exit(EXIT_FAILURE);
         }
-        // -server defaults to true for bitcoind but not for the GUI so do this
-        // here
+        // -server defaults to true for bitcoind
         gArgs.SoftSetBoolArg("-server", true);
         // Set this early so that parameter interactions go to console
         InitLogging();

@@ -1,9 +1,11 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2016 The Bitcoin Core developers
+// Copyright (c) 2018 The Bitcoin SV developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "interpreter.h"
+#include "script_flags.h"
 
 #include "crypto/ripemd160.h"
 #include "crypto/sha1.h"
@@ -32,6 +34,68 @@ inline bool set_error(ScriptError *ret, const ScriptError serror) {
 }
 
 } // namespace
+
+inline uint8_t make_rshift_mask(size_t n) {
+    static uint8_t mask[] = {0xFF, 0xFE, 0xFC, 0xF8, 0xF0, 0xE0, 0xC0, 0x80}; 
+    return mask[n]; 
+} 
+
+inline uint8_t make_lshift_mask(size_t n) {
+    static uint8_t mask[] = {0xFF, 0x7F, 0x3F, 0x1F, 0x0F, 0x07, 0x03, 0x01}; 
+    return mask[n]; 
+} 
+
+// shift x right by n bits, implements OP_RSHIFT
+static valtype RShift(const valtype &x, int n) {
+    int bit_shift = n % 8; 
+    int byte_shift = n / 8; 
+ 
+    uint8_t mask = make_rshift_mask(bit_shift); 
+    uint8_t overflow_mask = ~mask; 
+ 
+    valtype result(x.size(), 0x00); 
+    for (int i = 0; i < (int)x.size(); i++) {
+        int k = i + byte_shift;
+        if (k < (int)x.size()) {
+            uint8_t val = (x[i] & mask); 
+            val >>= bit_shift;
+            result[k] |= val; 
+        } 
+
+        if (k + 1 < (int)x.size()) {
+            uint8_t carryval = (x[i] & overflow_mask); 
+            carryval <<= 8 - bit_shift; 
+            result[k + 1] |= carryval;
+        } 
+    } 
+    return result; 
+} 
+
+// shift x left by n bits, implements OP_LSHIFT
+static valtype LShift(const valtype &x, int n) {
+    int bit_shift = n % 8; 
+    int byte_shift = n / 8; 
+ 
+    uint8_t mask = make_lshift_mask(bit_shift); 
+    uint8_t overflow_mask = ~mask; 
+ 
+    valtype result(x.size(), 0x00); 
+    for (int i = x.size() -1; i >= 0; i--) {
+        int k = i - byte_shift;
+        if (k >= 0)  {
+            uint8_t val = (x[i] & mask); 
+            val <<= bit_shift;
+            result[k] |= val; 
+        } 
+
+        if (k - 1 >= 0) {
+            uint8_t carryval = (x[i] & overflow_mask); 
+            carryval >>= 8 - bit_shift;
+            result[k - 1] |= carryval;
+        } 
+    } 
+    return result; 
+} 
 
 bool CastToBool(const valtype &vch) {
     for (size_t i = 0; i < vch.size(); i++) {
@@ -282,34 +346,39 @@ static bool CheckMinimalPush(const valtype &data, opcodetype opcode) {
 
 static bool IsOpcodeDisabled(opcodetype opcode, uint32_t flags) {
     switch (opcode) {
-        case OP_INVERT:
         case OP_2MUL:
         case OP_2DIV:
-        case OP_MUL:
-        case OP_LSHIFT:
-        case OP_RSHIFT:
             // Disabled opcodes.
             return true;
 
-        case OP_CAT:
-        case OP_SPLIT:
-        case OP_AND:
-        case OP_OR:
-        case OP_XOR:
-        case OP_NUM2BIN:
-        case OP_BIN2NUM:
-        case OP_DIV:
-        case OP_MOD:
+        case OP_INVERT:
+        case OP_MUL:
+        case OP_LSHIFT:
+        case OP_RSHIFT:
             // Opcodes that have been reenabled.
-            if ((flags & SCRIPT_ENABLE_MONOLITH_OPCODES) == 0) {
+            if ((flags & SCRIPT_ENABLE_MAGNETIC_OPCODES) == 0) {
                 return true;
             }
+            break;
 
         default:
             break;
     }
 
     return false;
+}
+
+inline bool IsValidMaxOpsPerScript(bool isMagnetic, int nOpCount) {
+    if (isMagnetic) {
+        if (nOpCount > MAGNETIC_MAX_OPS_PER_SCRIPT) {
+            return false;
+        }
+    } else {
+        if (nOpCount > MAX_OPS_PER_SCRIPT) {
+            return false;
+        }
+    }
+    return true;
 }
 
 bool EvalScript(std::vector<valtype> &stack, const CScript &script,
@@ -333,6 +402,7 @@ bool EvalScript(std::vector<valtype> &stack, const CScript &script,
     }
     int nOpCount = 0;
     bool fRequireMinimal = (flags & SCRIPT_VERIFY_MINIMALDATA) != 0;
+    bool isMagnetic = (flags & SCRIPT_ENABLE_MAGNETIC_OPCODES) != 0;
 
     try {
         while (pc < pend) {
@@ -348,8 +418,12 @@ bool EvalScript(std::vector<valtype> &stack, const CScript &script,
                 return set_error(serror, SCRIPT_ERR_PUSH_SIZE);
             }
 
+            //
+            // Check opcode limits.
+            //
+            // Push values are not taken into consideration.
             // Note how OP_RESERVED does not count towards the opcode limit.
-            if (opcode > OP_16 && ++nOpCount > MAX_OPS_PER_SCRIPT) {
+            if ((opcode > OP_16) && !IsValidMaxOpsPerScript(isMagnetic, ++nOpCount)) {
                 return set_error(serror, SCRIPT_ERR_OP_COUNT);
             }
 
@@ -836,6 +910,53 @@ bool EvalScript(std::vector<valtype> &stack, const CScript &script,
                         popstack(stack);
                     } break;
 
+                    case OP_INVERT: {
+                        // (x -- out)
+                        if (stack.size() < 1) {
+                            return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
+                        }
+                        valtype &vch1 = stacktop(-1);
+                        // To avoid allocating, we modify vch1 in place
+                        for(size_t i=0; i<vch1.size(); i++)
+                        {
+                            vch1[i] = ~vch1[i];
+                        }
+                    } break;
+
+                    case OP_LSHIFT: {
+                        // (x n -- out)
+                        if (stack.size() < 2) {
+                            return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
+                        }
+
+                        const valtype vch1 = stacktop(-2);
+                        CScriptNum n(stacktop(-1), fRequireMinimal);
+                        if (n < 0) {
+                            return set_error(serror, SCRIPT_ERR_INVALID_NUMBER_RANGE);
+                        }
+
+                        popstack(stack);
+                        popstack(stack);
+                        stack.push_back(LShift(vch1, n.getint()));
+                    } break;
+
+                    case OP_RSHIFT: {
+                        // (x n -- out)
+                        if (stack.size() < 2) {
+                            return set_error( serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
+                        }
+
+                        const valtype vch1 = stacktop(-2);
+                        CScriptNum n(stacktop(-1), fRequireMinimal);
+                        if (n < 0) {
+                            return set_error(serror, SCRIPT_ERR_INVALID_NUMBER_RANGE);
+                        }
+
+                        popstack(stack);
+                        popstack(stack);
+                        stack.push_back(RShift(vch1, n.getint()));
+                    } break;
+
                     case OP_EQUAL:
                     case OP_EQUALVERIFY:
                         // case OP_NOTEQUAL: // use OP_NUMNOTEQUAL
@@ -915,6 +1036,7 @@ bool EvalScript(std::vector<valtype> &stack, const CScript &script,
 
                     case OP_ADD:
                     case OP_SUB:
+                    case OP_MUL:
                     case OP_DIV:
                     case OP_MOD:
                     case OP_BOOLAND:
@@ -943,6 +1065,10 @@ bool EvalScript(std::vector<valtype> &stack, const CScript &script,
 
                             case OP_SUB:
                                 bn = bn1 - bn2;
+                                break;
+
+                            case OP_MUL:
+                                bn = bn1 * bn2;
                                 break;
 
                             case OP_DIV:
@@ -1141,7 +1267,7 @@ bool EvalScript(std::vector<valtype> &stack, const CScript &script,
                             return set_error(serror, SCRIPT_ERR_PUBKEY_COUNT);
                         }
                         nOpCount += nKeysCount;
-                        if (nOpCount > MAX_OPS_PER_SCRIPT) {
+                        if (!IsValidMaxOpsPerScript(isMagnetic, nOpCount)) {
                             return set_error(serror, SCRIPT_ERR_OP_COUNT);
                         }
                         int ikey = ++i;
@@ -1541,14 +1667,6 @@ uint256 SignatureHash(const CScript &scriptCode, const CTransaction &txTo,
                       unsigned int nIn, SigHashType sigHashType,
                       const Amount amount,
                       const PrecomputedTransactionData *cache, uint32_t flags) {
-    if (flags & SCRIPT_ENABLE_REPLAY_PROTECTION) {
-        // Legacy chain's value for fork id must be of the form 0xffxxxx.
-        // By xoring with 0xdead, we ensure that the value will be different
-        // from the original one, even if it already starts with 0xff.
-        uint32_t newForkValue = sigHashType.getForkValue() ^ 0xdead;
-        sigHashType = sigHashType.withForkValue(0xff0000 | newForkValue);
-    }
-
     if (sigHashType.hasForkId() && (flags & SCRIPT_ENABLE_SIGHASH_FORKID)) {
         uint256 hashPrevouts;
         uint256 hashSequence;

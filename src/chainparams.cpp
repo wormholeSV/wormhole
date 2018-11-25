@@ -139,9 +139,6 @@ public:
         // November 13, 2017 hard fork
         consensus.daaHeight = 504031;
 
-        // May 15, 2018 hard fork
-        consensus.monolithActivationTime = 1526400000;
-
         // Nov 15, 2018 hard fork
         consensus.magneticAnomalyActivationTime = 1542300000;
 
@@ -173,12 +170,9 @@ public:
 
         // Note that of those with the service bits flag, most only support a
         // subset of possible options.
-        // Bitcoin ABC seeder
+        // Bitcoin SV seeder
         vSeeds.push_back(
-            CDNSSeedData("bitcoinabc.org", "seed.bitcoinabc.org", true));
-        // bitcoinforks seeders
-        vSeeds.push_back(CDNSSeedData("bitcoinforks.org",
-                                      "seed-abc.bitcoinforks.org", true));
+            CDNSSeedData("bitcoinsv.io", "seed.bitcoinsv.io", true));
         // BU backed seeder
         vSeeds.push_back(CDNSSeedData("bitcoinunlimited.info",
                                       "btccash-seeder.bitcoinunlimited.info",
@@ -317,9 +311,6 @@ public:
         // November 13, 2017 hard fork
         consensus.daaHeight = 1188697;
 
-        // May 15, 2018 hard fork
-        consensus.monolithActivationTime = 1526400000;
-
         // Nov 15, 2018 hard fork
         consensus.magneticAnomalyActivationTime = 1542300000;
 
@@ -347,12 +338,9 @@ public:
         vFixedSeeds.clear();
         vSeeds.clear();
         // nodes with support for servicebits filtering should be at the top
-        // Bitcoin ABC seeder
-        vSeeds.push_back(CDNSSeedData("bitcoinabc.org",
-                                      "testnet-seed.bitcoinabc.org", true));
-        // bitcoinforks seeders
-        vSeeds.push_back(CDNSSeedData(
-            "bitcoinforks.org", "testnet-seed-abc.bitcoinforks.org", true));
+        // Bitcoin SV seeder
+        vSeeds.push_back(CDNSSeedData("bitcoinsv.io",
+                                      "testnet-seed.bitcoinsv.io", true));
         // Bitprim
         vSeeds.push_back(
             CDNSSeedData("bitprim.org", "testnet-seed.bitprim.org", true));
@@ -444,9 +432,6 @@ public:
 
         // November 13, 2017 hard fork is always on on regtest.
         consensus.daaHeight = 0;
-
-        // May 15, 2018 hard fork.
-        consensus.monolithActivationTime = 1526400000;
 
         // Nov 15, 2018 hard fork
         consensus.magneticAnomalyActivationTime = 1542300000;

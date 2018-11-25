@@ -1,6 +1,9 @@
 Developer Notes
 ===============
 
+These notes will be updated for Bitcoin SV when the Bitcoin SV team begin
+accepting code contributions.
+
 Various coding styles have been used during the history of the codebase,
 and the result is not very consistent. However, we're now trying to converge to
 a single style, so please use it in new code. Old code will be converted
@@ -176,9 +179,6 @@ error and debugging messages are written there.
 
 The -debug=... command-line option controls debugging; running with just -debug or -debug=1 will turn
 on all categories (and give you a very large debug.log file).
-
-The Qt code routes qDebug() output to debug.log under category "qt": run with -debug=qt
-to see it.
 
 **running and debugging tests**
 
@@ -453,15 +453,6 @@ Source code organization
 
   - *Rationale*: Avoids symbol conflicts
 
-GUI
------
-
-- Do not display or manipulate dialogs in model code (classes `*Model`)
-
-  - *Rationale*: Model classes pass through events and data from the core, they
-    should not interact with the user. That's where View classes come in. The converse also
-    holds: try to not directly access core data structures from Views.
-
 Subtrees
 ----------
 
@@ -498,9 +489,6 @@ Git and GitHub tips
 
 - Github is not typically the source of truth for pull requests.  See CONTRIBUTING.md for instructions
   on setting up your repo correctly.
-
-- Similarly, your git remote origin should be set to: `ssh://vcs@reviews.bitcoinabc.org:2221/source/bitcoin-abc.git`
-  instead of github.com.  See CONTRIBUTING.md for details.
 
 - For resolving merge/rebase conflicts, it can be useful to enable diff3 style using
   `git config merge.conflictstyle diff3`. Instead of

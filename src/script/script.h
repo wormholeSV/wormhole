@@ -1,5 +1,6 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2016 The Bitcoin Core developers
+// Copyright (c) 2018 The Bitcoin SV developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -24,6 +25,7 @@ static const unsigned int MAX_SCRIPT_ELEMENT_SIZE = 520;
 
 // Maximum number of non-push operations per script
 static const int MAX_OPS_PER_SCRIPT = 201;
+static const int MAGNETIC_MAX_OPS_PER_SCRIPT = 500;
 
 // Maximum number of public keys per multisig
 static const int MAX_PUBKEYS_PER_MULTISIG = 20;
@@ -271,6 +273,13 @@ public:
     }
     inline CScriptNum operator/(const CScriptNum &rhs) const {
         return operator/(rhs.m_value);
+    }
+
+    inline CScriptNum operator*(const int64_t &rhs) const {
+        return CScriptNum(m_value * rhs);
+    }
+    inline CScriptNum operator*(const CScriptNum &rhs) const {
+        return operator*(rhs.m_value);
     }
 
     inline CScriptNum operator%(const int64_t &rhs) const {

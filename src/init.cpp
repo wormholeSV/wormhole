@@ -108,7 +108,7 @@ static const char *FEE_ESTIMATES_FILENAME = "fee_estimates.dat";
 // Thread management and startup/shutdown:
 //
 // The network-processing threads are all part of a thread group created by
-// AppInit() or the Qt main() function.
+// AppInit() function.
 //
 // A clean exit happens when StartShutdown() or the SIGTERM signal handler sets
 // fRequestShutdown, which triggers the DetectShutdownThread(), which interrupts
@@ -120,9 +120,6 @@ static const char *FEE_ESTIMATES_FILENAME = "fee_estimates.dat";
 // Note that if running -daemon the parent process returns from AppInit2 before
 // adding any threads to the threadGroup, so .join_all() returns immediately and
 // the parent exits from main().
-//
-// Shutdown for Qt is very similar, only it uses a QTimer to detect
-// fRequestShutdown getting set, and then does the normal Qt shutdown thing.
 //
 
 std::atomic<bool> fRequestShutdown(false);
@@ -138,7 +135,7 @@ bool ShutdownRequested() {
 /**
  * This is a minimally invasive approach to shutdown on LevelDB read errors from
  * the chainstate, while keeping user interface out of the common library, which
- * is shared between bitcoind, and bitcoin-qt and non-server tools.
+ * is shared between bitcoind and non-server tools.
  */
 class CCoinsViewErrorCatcher final : public CCoinsViewBacked {
 public:
@@ -794,6 +791,12 @@ std::string HelpMessage(HelpMessageMode mode) {
     AppendParamsHelpMessages(strUsage, showDebug);
 
     strUsage += HelpMessageGroup(_("Node relay options:"));
+    strUsage +=
+        HelpMessageOpt("-excessiveblocksize=<n>",
+                       strprintf(_("Set the maximum block size in bytes we will accept "
+                                   "from any source. This is the effective block size "
+                                   "hard limit (default: %d)"),
+                                 DEFAULT_MAX_BLOCK_SIZE));
     if (showDebug) {
         strUsage += HelpMessageOpt(
             "-acceptnonstdtxn",
@@ -801,11 +804,6 @@ std::string HelpMessage(HelpMessageMode mode) {
                 "Relay and mine \"non-standard\" transactions (%sdefault: %u)",
                 "testnet/regtest only; ",
                 defaultChainParams->RequireStandard()));
-        strUsage +=
-            HelpMessageOpt("-excessiveblocksize=<n>",
-                           strprintf(_("Do not accept blocks larger than this "
-                                       "limit, in bytes (default: %d)"),
-                                     DEFAULT_MAX_BLOCK_SIZE));
         strUsage += HelpMessageOpt(
             "-dustrelayfee=<amt>",
             strprintf("Fee rate (in %s/kB) used to defined dust, the value of "
@@ -831,7 +829,9 @@ std::string HelpMessage(HelpMessageMode mode) {
     strUsage += HelpMessageGroup(_("Block creation options:"));
     strUsage += HelpMessageOpt(
         "-blockmaxsize=<n>",
-        strprintf(_("Set maximum block size in bytes (default: %d)"),
+        strprintf(_("Set maximum block size in bytes we will mine (default: %d). "
+                    "Must be less than or equal the hard maximum block size limit "
+                    "as set by -excessiveblocksize"),
                   DEFAULT_MAX_GENERATED_BLOCK_SIZE));
     strUsage += HelpMessageOpt(
         "-blockprioritypercentage=<n>",
@@ -910,8 +910,8 @@ std::string HelpMessage(HelpMessageMode mode) {
 
 std::string LicenseInfo() {
     const std::string URL_SOURCE_CODE =
-        "<https://github.com/Bitcoin-ABC/bitcoin-abc>";
-    const std::string URL_WEBSITE = "<https://www.bitcoinabc.org>";
+        "<https://github.com/bitcoin-sv/bitcoin-sv>";
+    const std::string URL_WEBSITE = "<https://bitcoinsv.io>";
 
     return CopyrightHolders(
                strprintf(_("Copyright (C) %i-%i"), 2009, COPYRIGHT_YEAR) +
@@ -1492,11 +1492,16 @@ bool AppInitParameterInteraction(Config &config) {
         nScriptCheckThreads = MAX_SCRIPTCHECK_THREADS;
 
     // Configure excessive block size.
-    const uint64_t nProposedExcessiveBlockSize =
-        gArgs.GetArg("-excessiveblocksize", DEFAULT_MAX_BLOCK_SIZE);
-    if (!config.SetMaxBlockSize(nProposedExcessiveBlockSize)) {
-        return InitError(
-            _("Excessive block size must be > 1,000,000 bytes (1MB)"));
+    if(gArgs.IsArgSet("-excessiveblocksize")) {
+        const uint64_t nProposedExcessiveBlockSize =
+            gArgs.GetArg("-excessiveblocksize", DEFAULT_MAX_BLOCK_SIZE);
+        if (!config.SetMaxBlockSize(nProposedExcessiveBlockSize)) {
+            return InitError(strprintf(_(
+                "Excessive block size must be > %d and less than the "
+                "max block file size (%d)"),
+                LEGACY_MAX_BLOCK_SIZE, MAX_BLOCKFILE_SIZE - BLOCKFILE_BLOCK_HEADER_SIZE
+            ));
+        }
     }
 
     // Check blockmaxsize does not exceed maximum accepted block size.
@@ -2175,8 +2180,7 @@ AppInitMain(Config &config, boost::thread_group &threadGroup,
         }
     }
 
-    // As LoadBlockIndex can take several minutes, it's possible the user
-    // requested to kill the GUI during the last operation. If so, exit.
+    // As LoadBlockIndex can take several minutes.
     // As the program has not fully started yet, Shutdown() is possibly
     // overkill.
     if (fRequestShutdown) {

@@ -454,9 +454,9 @@ uint64_t GetTransactionSigOpCount(const CTransaction &tx,
     return nSigOps;
 }
 
-static bool CheckTransactionCommon(const CTransaction &tx,
-                                   CValidationState &state,
-                                   bool fCheckDuplicateInputs) {
+static bool CheckTransactionCommon(const CTransaction& tx,
+                                   CValidationState& state)
+{
     // Basic checks that don't depend on any context
     if (tx.vin.empty()) {
         return state.DoS(10, false, REJECT_INVALID, "bad-txns-vin-empty");
@@ -495,29 +495,17 @@ static bool CheckTransactionCommon(const CTransaction &tx,
         return state.DoS(100, false, REJECT_INVALID, "bad-txn-sigops");
     }
 
-    // Check for duplicate inputs - note that this check is slow so we skip it
-    // in CheckBlock
-    if (fCheckDuplicateInputs) {
-        std::set<COutPoint> vInOutPoints;
-        for (const auto &txin : tx.vin) {
-            if (!vInOutPoints.insert(txin.prevout).second) {
-                return state.DoS(100, false, REJECT_INVALID,
-                                 "bad-txns-inputs-duplicate");
-            }
-        }
-    }
-
     return true;
 }
 
-bool CheckCoinbase(const CTransaction &tx, CValidationState &state,
-                   bool fCheckDuplicateInputs) {
+bool CheckCoinbase(const CTransaction& tx, CValidationState& state)
+{
     if (!tx.IsCoinBase()) {
         return state.DoS(100, false, REJECT_INVALID, "bad-cb-missing", false,
                          "first tx is not coinbase");
     }
 
-    if (!CheckTransactionCommon(tx, state, fCheckDuplicateInputs)) {
+    if (!CheckTransactionCommon(tx, state)) {
         // CheckTransactionCommon fill in the state.
         return false;
     }
@@ -529,21 +517,27 @@ bool CheckCoinbase(const CTransaction &tx, CValidationState &state,
     return true;
 }
 
-bool CheckRegularTransaction(const CTransaction &tx, CValidationState &state,
-                             bool fCheckDuplicateInputs) {
+bool CheckRegularTransaction(const CTransaction& tx, CValidationState& state)
+{
     if (tx.IsCoinBase()) {
         return state.DoS(100, false, REJECT_INVALID, "bad-tx-coinbase");
     }
 
-    if (!CheckTransactionCommon(tx, state, fCheckDuplicateInputs)) {
+    if (!CheckTransactionCommon(tx, state)) {
         // CheckTransactionCommon fill in the state.
         return false;
     }
 
+    std::unordered_set<COutPoint, SaltedOutpointHasher> inOutPoints {};
     for (const auto &txin : tx.vin) {
         if (txin.prevout.IsNull()) {
             return state.DoS(10, false, REJECT_INVALID,
                              "bad-txns-prevout-null");
+        }
+
+        if (!inOutPoints.insert(txin.prevout).second) {
+            return state.DoS(100, false, REJECT_INVALID,
+                             "bad-txns-inputs-duplicate");
         }
     }
 
@@ -612,19 +606,19 @@ bool IsDAAEnabled(const Config &config, const CBlockIndex *pindexPrev) {
     return IsDAAEnabled(config, pindexPrev->nHeight);
 }
 
-static bool IsMonolithEnabled(const Config &config, int64_t nMedianTimePast) {
+static bool IsMagneticEnabled(const Config &config, int64_t nMedianTimePast) {
     return nMedianTimePast >=
            gArgs.GetArg(
-               "-monolithactivationtime",
-               config.GetChainParams().GetConsensus().monolithActivationTime);
+                   "-magneticactivationtime",
+                   config.GetChainParams().GetConsensus().magneticAnomalyActivationTime);
 }
 
-bool IsMonolithEnabled(const Config &config, const CBlockIndex *pindexPrev) {
+bool IsMagneticEnabled(const Config &config, const CBlockIndex *pindexPrev) {
     if (pindexPrev == nullptr) {
         return false;
     }
 
-    return IsMonolithEnabled(config, pindexPrev->GetMedianTimePast());
+    return IsMagneticEnabled(config, pindexPrev->GetMedianTimePast());
 }
 
 static bool IsReplayProtectionEnabled(const Config &config,
@@ -762,7 +756,7 @@ static bool AcceptToMemoryPoolWorker(
     }
 
     // Coinbase is only valid in a block, not as a loose transaction.
-    if (!CheckRegularTransaction(tx, state, true)) {
+    if (!CheckRegularTransaction(tx, state)) {
         // state filled in by CheckRegularTransaction.
         return false;
     }
@@ -999,8 +993,9 @@ static bool AcceptToMemoryPoolWorker(
 
         // Set extraFlags as a set of flags that needs to be activated.
         uint32_t extraFlags = SCRIPT_VERIFY_NONE;
-        if (IsMonolithEnabled(config, chainActive.Tip())) {
-            extraFlags |= SCRIPT_ENABLE_MONOLITH_OPCODES;
+
+        if (IsMagneticEnabled(config, chainActive.Tip())) {
+            extraFlags |= SCRIPT_ENABLE_MAGNETIC_OPCODES;
         }
 
         if (IsReplayProtectionEnabledForCurrentBlock(config)) {
@@ -1602,23 +1597,23 @@ bool CheckInputs(const CTransaction &tx, CValidationState &state,
         } else if (!check()) {
             const bool hasNonMandatoryFlags =
                 (flags & STANDARD_NOT_MANDATORY_VERIFY_FLAGS) != 0;
-            const bool doesNotHaveMonolith =
-                (flags & SCRIPT_ENABLE_MONOLITH_OPCODES) == 0;
-            if (hasNonMandatoryFlags || doesNotHaveMonolith) {
+            const bool doesNotHaveMagnetic =
+                (flags & SCRIPT_ENABLE_MAGNETIC_OPCODES) == 0;
+            if (hasNonMandatoryFlags || doesNotHaveMagnetic) {
                 // Check whether the failure was caused by a non-mandatory
                 // script verification check, such as non-standard DER encodings
                 // or non-null dummy arguments; if so, don't trigger DoS
                 // protection to avoid splitting the network between upgraded
                 // and non-upgraded nodes.
                 //
-                // We also check activating the monolith opcodes as it is a
-                // strictly additive change and we would not like to ban some of
+                // We also check activating the magnetic opcodes as they
+                // are strictly additive changes and we would not like to ban some of
                 // our peer that are ahead of us and are considering the fork
                 // as activated.
                 CScriptCheck check2(
                     scriptPubKey, amount, tx, i,
                     (flags & ~STANDARD_NOT_MANDATORY_VERIFY_FLAGS) |
-                        SCRIPT_ENABLE_MONOLITH_OPCODES,
+                        SCRIPT_ENABLE_MAGNETIC_OPCODES,
                     sigCacheStore, txdata);
                 if (check2()) {
                     return state.Invalid(
@@ -1985,9 +1980,9 @@ static uint32_t GetBlockScriptFlags(const Config &config,
         flags |= SCRIPT_VERIFY_NULLFAIL;
     }
 
-    // The monolith HF enable a set of opcodes.
-    if (IsMonolithEnabled(config, pChainTip)) {
-        flags |= SCRIPT_ENABLE_MONOLITH_OPCODES;
+    // The magnetic HF enable a set of opcodes.
+    if (IsMagneticEnabled(config, pChainTip)) {
+        flags |= SCRIPT_ENABLE_MAGNETIC_OPCODES;
     }
 
     // We make sure this node will have replay protection during the next hard
@@ -2563,8 +2558,7 @@ static void UpdateTip(const Config &config, CBlockIndex *pindexNew) {
             std::string strWarning =
                 _("Warning: Unknown block versions being mined! It's possible "
                   "unknown rules are in effect");
-            // notify GetWarnings(), called by Qt and the JSON-RPC code to warn
-            // the user:
+            // notify GetWarnings(), called by the JSON-RPC code to warn the user:
             SetMiscWarning(strWarning);
             if (!fWarned) {
                 AlertNotify(strWarning);
@@ -2642,12 +2636,12 @@ static bool DisconnectTip(const Config &config, CValidationState &state,
     // no easy way to do this so we'll just discard the whole mempool and then
     // add the transaction of the block we just disconnected back.
     //
-    // Samewise, if this block enabled the monolith opcodes, then we need to
-    // clear the mempool of any transaction using them.
+    // Samewise, if this block enabled the magnetic opcodes, then we
+    // need to clear the mempool of any transaction using them.
     if ((IsReplayProtectionEnabled(config, pindexDelete) &&
          !IsReplayProtectionEnabled(config, pindexDelete->pprev)) ||
-        (IsMonolithEnabled(config, pindexDelete) &&
-         !IsMonolithEnabled(config, pindexDelete->pprev))) {
+        (IsMagneticEnabled(config, pindexDelete) &&
+         !IsMagneticEnabled(config, pindexDelete->pprev))) {
         mempool.clear();
         // While not strictly necessary, clearing the disconnect pool is also
         // beneficial so we don't try to reuse its content at the end of the
@@ -3566,7 +3560,7 @@ bool CheckBlock(const Config &config, const CBlock &block,
     }
 
     // And a valid coinbase.
-    if (!CheckCoinbase(*block.vtx[0], state, false)) {
+    if (!CheckCoinbase(*block.vtx[0], state)) {
         return state.Invalid(false, state.GetRejectCode(),
                              state.GetRejectReason(),
                              strprintf("Coinbase check failed (txid %s) %s",
@@ -3600,11 +3594,11 @@ bool CheckBlock(const Config &config, const CBlock &block,
             break;
         }
 
-        // Check that the transaction is valid. because this check differs for
-        // the coinbase, the loos is arranged such as this only runs after at
+        // Check that the transaction is valid. Because this check differs for
+        // the coinbase, the loop is arranged such as this only runs after at
         // least one increment.
         tx = block.vtx[i].get();
-        if (!CheckRegularTransaction(*tx, state, false)) {
+        if (!CheckRegularTransaction(*tx, state)) {
             return state.Invalid(
                 false, state.GetRejectCode(), state.GetRejectReason(),
                 strprintf("Transaction check failed (txid %s) %s",
@@ -3760,12 +3754,12 @@ static bool ContextualCheckBlock(const Config &config, const CBlock &block,
         nLockTimeFlags |= LOCKTIME_MEDIAN_TIME_PAST;
     }
 
-    if (!IsMonolithEnabled(config, pindexPrev)) {
-        // When the May 15, 2018 HF is not enabled, block cannot be bigger
-        // than 8MB .
+    // When the Nov 15, 2018 HF is not enabled (and the user hasn't overridden the max size),
+    // block cannot be bigger than 32MB.
+    if (!IsMagneticEnabled(config, pindexPrev) && !config.MaxBlockSizeOverridden()) {
         const uint64_t currentBlockSize =
             ::GetSerializeSize(block, SER_NETWORK, PROTOCOL_VERSION);
-        if (currentBlockSize > 8 * ONE_MEGABYTE) {
+        if (currentBlockSize > LEGACY_DEFAULT_MAX_BLOCK_SIZE) {
             return state.DoS(100, false, REJECT_INVALID, "bad-blk-length",
                              false, "size limits failed");
         }
@@ -4008,7 +4002,7 @@ static bool AcceptBlock(const Config &config,
         if (dbp != nullptr) {
             blockPos = *dbp;
         }
-        if (!FindBlockPos(state, blockPos, nBlockSize + 8, nHeight,
+        if (!FindBlockPos(state, blockPos, nBlockSize + BLOCKFILE_BLOCK_HEADER_SIZE, nHeight,
                           block.GetBlockTime(), dbp != nullptr)) {
             return error("AcceptBlock(): FindBlockPos failed");
         }

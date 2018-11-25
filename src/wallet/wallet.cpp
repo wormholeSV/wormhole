@@ -1721,27 +1721,14 @@ CBlockIndex *CWallet::ScanForWalletTransactions(CBlockIndex *pindexStart,
         pindex = chainActive.Next(pindex);
     }
 
-    // Show rescan progress in GUI as dialog or on splashscreen, if -rescan on
-    // startup.
-    ShowProgress(_("Rescanning..."), 0);
     double dProgressStart =
         GuessVerificationProgress(chainParams.TxData(), pindex);
     double dProgressTip =
         GuessVerificationProgress(chainParams.TxData(), chainActive.Tip());
     while (pindex) {
-        if (pindex->nHeight % 100 == 0 && dProgressTip - dProgressStart > 0.0) {
-            ShowProgress(
-                _("Rescanning..."),
-                std::max(1,
-                         std::min(99, (int)((GuessVerificationProgress(
-                                                 chainParams.TxData(), pindex) -
-                                             dProgressStart) /
-                                            (dProgressTip - dProgressStart) *
-                                            100))));
-        }
-
+        
         CBlock block;
-        if (ReadBlockFromDisk(block, pindex, GetConfig())) {
+        if (ReadBlockFromDisk(block, pindex, GlobalConfig::GetConfig())) {
             for (size_t posInBlock = 0; posInBlock < block.vtx.size();
                  ++posInBlock) {
                 AddToWalletIfInvolvingMe(block.vtx[posInBlock], pindex,
@@ -1762,9 +1749,6 @@ CBlockIndex *CWallet::ScanForWalletTransactions(CBlockIndex *pindexStart,
                       GuessVerificationProgress(chainParams.TxData(), pindex));
         }
     }
-
-    // Hide progress dialog in GUI.
-    ShowProgress(_("Rescanning..."), 100);
 
     return ret;
 }
@@ -2945,7 +2929,7 @@ bool CWallet::CreateTransaction(const std::vector<CRecipient> &vecSend,
             // If we made it here and we aren't even able to meet the relay fee
             // on the next pass, give up because we must be at the maximum
             // allowed fee.
-            Amount minFee = GetConfig().GetMinFeePerKB().GetFee(nBytes);
+            Amount minFee = GlobalConfig::GetConfig().GetMinFeePerKB().GetFee(nBytes);
             if (nFeeNeeded < minFee) {
                 strFailReason = _("Transaction too large for fee policy");
                 return false;
@@ -3128,7 +3112,7 @@ bool CWallet::AddAccountingEntry(const CAccountingEntry &acentry,
 
 Amount CWallet::GetRequiredFee(unsigned int nTxBytes) {
     return std::max(minTxFee.GetFee(nTxBytes),
-                    GetConfig().GetMinFeePerKB().GetFee(nTxBytes));
+                    GlobalConfig::GetConfig().GetMinFeePerKB().GetFee(nTxBytes));
 }
 
 Amount CWallet::GetMinimumFee(unsigned int nTxBytes,
@@ -4326,7 +4310,7 @@ void CWallet::postInitProcess(CScheduler &scheduler) {
 }
 
 bool CWallet::ParameterInteraction() {
-    CFeeRate minRelayTxFee = GetConfig().GetMinFeePerKB();
+    CFeeRate minRelayTxFee = GlobalConfig::GetConfig().GetMinFeePerKB();
 
     gArgs.SoftSetArg("-wallet", DEFAULT_WALLET_DAT);
     const bool is_multiwallet = gArgs.GetArgs("-wallet").size() > 1;
@@ -4552,6 +4536,6 @@ int CMerkleTx::GetBlocksToMaturity() const {
 
 bool CMerkleTx::AcceptToMemoryPool(const Amount nAbsurdFee,
                                    CValidationState &state) {
-    return ::AcceptToMemoryPool(GetConfig(), mempool, state, tx, true, nullptr,
+    return ::AcceptToMemoryPool(GlobalConfig::GetConfig(), mempool, state, tx, true, nullptr,
                                 false, nAbsurdFee);
 }

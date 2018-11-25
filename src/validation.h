@@ -1,6 +1,7 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2016 The Bitcoin Core developers
 // Copyright (c) 2017 The Bitcoin developers
+// Copyright (c) 2018 The Bitcoin SV developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -86,6 +87,8 @@ static const unsigned int MAX_DISCONNECTED_TX_POOL_SIZE =
 static const unsigned int MAX_BLOCKFILE_SIZE = 0x8000000; // 128 MiB
 /** The pre-allocation chunk size for blk?????.dat files (since 0.8) */
 static const unsigned int BLOCKFILE_CHUNK_SIZE = 0x1000000; // 16 MiB
+/** The size of the header for each block in a block file */
+static const unsigned int BLOCKFILE_BLOCK_HEADER_SIZE = 8;  // 8 bytes
 /** The pre-allocation chunk size for rev?????.dat files (since 0.8) */
 static const unsigned int UNDOFILE_CHUNK_SIZE = 0x100000; // 1 MiB
 
@@ -386,7 +389,6 @@ bool IsInitialBlockDownload();
  * - "rpc": get critical warnings, which should put the client in safe mode if
  * non-empty
  * - "statusbar": get all warnings
- * - "gui": get all warnings, translated (where possible) for GUI
  * This function only returns the highest priority warning of the set selected
  * by strFor.
  */
@@ -443,8 +445,8 @@ bool IsUAHFenabled(const Config &config, const CBlockIndex *pindexPrev);
 /** Check if DAA HF has activated. */
 bool IsDAAEnabled(const Config &config, const CBlockIndex *pindexPrev);
 
-/** Check if May 15, 2018 HF has activated. */
-bool IsMonolithEnabled(const Config &config, const CBlockIndex *pindexPrev);
+/** Check if November 15, 2018 HF has activated. */
+bool IsMagneticEnabled(const Config &config, const CBlockIndex *pindexPrev);
 
 /**
  * (try to) add transaction to memory pool
@@ -523,12 +525,9 @@ void UpdateCoins(const CTransaction &tx, CCoinsViewCache &inputs,
 
 /** Transaction validation functions */
 
-/** Context-independent validity checks for coinbase and non-coinbase
- * transactions */
-bool CheckRegularTransaction(const CTransaction &tx, CValidationState &state,
-                             bool fCheckDuplicateInputs = true);
-bool CheckCoinbase(const CTransaction &tx, CValidationState &state,
-                   bool fCheckDuplicateInputs = true);
+/** Context-independent validity checks for coinbase and non-coinbase transactions */
+bool CheckRegularTransaction(const CTransaction& tx, CValidationState& state);
+bool CheckCoinbase(const CTransaction& tx, CValidationState& state);
 
 namespace Consensus {
 

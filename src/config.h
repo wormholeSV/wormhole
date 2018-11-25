@@ -6,6 +6,8 @@
 #define BITCOIN_CONFIG_H
 
 #include "amount.h"
+#include "consensus/consensus.h"
+#include "policy/policy.h"
 
 #include <boost/noncopyable.hpp>
 
@@ -19,8 +21,8 @@ class Config : public boost::noncopyable {
 public:
     virtual bool SetMaxBlockSize(uint64_t maxBlockSize) = 0;
     virtual uint64_t GetMaxBlockSize() const = 0;
-    virtual bool
-    SetBlockPriorityPercentage(int64_t blockPriorityPercentage) = 0;
+    virtual bool MaxBlockSizeOverridden() const = 0;
+    virtual bool SetBlockPriorityPercentage(int64_t blockPriorityPercentage) = 0;
     virtual uint8_t GetBlockPriorityPercentage() const = 0;
     virtual const CChainParams &GetChainParams() const = 0;
     virtual void SetCashAddrEncoding(bool) = 0;
@@ -35,9 +37,10 @@ public:
 
 class GlobalConfig final : public Config {
 public:
-    GlobalConfig();
+    GlobalConfig() = default;
     bool SetMaxBlockSize(uint64_t maxBlockSize) override;
     uint64_t GetMaxBlockSize() const override;
+    bool MaxBlockSizeOverridden() const override;
     bool SetBlockPriorityPercentage(int64_t blockPriorityPercentage) override;
     uint8_t GetBlockPriorityPercentage() const override;
     const CChainParams &GetChainParams() const override;
@@ -50,10 +53,17 @@ public:
     void SetMinFeePerKB(CFeeRate amt) override;
     CFeeRate GetMinFeePerKB() const override;
 
+    void SetMaxBlockSizeOverridden(bool overridden);    // For unit testing only
+
+    static GlobalConfig& GetConfig();
+
 private:
-    bool useCashAddr;
-    Amount excessUTXOCharge;
-    CFeeRate feePerKB;
+    bool useCashAddr { false };
+    Amount excessUTXOCharge {};
+    CFeeRate feePerKB {};
+    uint64_t maxBlockSize { DEFAULT_MAX_BLOCK_SIZE };
+    bool maxBlockSizeOverridden { false };
+    uint64_t blockPriorityPercentage { DEFAULT_BLOCK_PRIORITY_PERCENTAGE };
 };
 
 // Dummy for subclassing in unittests
@@ -63,6 +73,7 @@ public:
     DummyConfig(std::string net);
     bool SetMaxBlockSize(uint64_t maxBlockSize) override { return false; }
     uint64_t GetMaxBlockSize() const override { return 0; }
+    bool MaxBlockSizeOverridden() const override { return false; }
     bool SetBlockPriorityPercentage(int64_t blockPriorityPercentage) override {
         return false;
     }
@@ -83,8 +94,5 @@ public:
 private:
     std::unique_ptr<CChainParams> chainParams;
 };
-
-// Temporary woraround.
-const Config &GetConfig();
 
 #endif
