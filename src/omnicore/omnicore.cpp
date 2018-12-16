@@ -107,9 +107,9 @@ CCriticalSection cs_tally;
 static int nWaterlineBlock = 0;
 
 string burnwhc_address = "";
-string burnwhc_mainnet = "bitcoincash:qqqqqqqqqqqqqqqqqqqqqqqqqqqqqu08dsyxz98whc";
-string burnwhc_testnet = "bchtest:qqqqqqqqqqqqqqqqqqqqqqqqqqqqqdmwgvnjkt8whc";
-string burnwhc_regnet = "bchreg:pqqqqqqqqqqqqqqqqqqqqqqqqqqqqp0kvc457r8whc";
+string burnwhc_mainnet = "bitcoincash:qqqqqqqqqqqqqqqqqqqqqqqqqqqqq0y2vczns98wsv";
+string burnwhc_testnet = "bchtest:qqqqqqqqqqqqqqqqqqqqqqqqqqqqprhg3y9xp98wsv";
+string burnwhc_regnet = "bchreg:qqqqqqqqqqqqqqqqqqqqqqqqqqqqq40envjf028wsv";
 
 //! Available balances of wallet properties
 std::map<uint32_t, int64_t> global_balance_money;
