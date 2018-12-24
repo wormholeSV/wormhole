@@ -738,7 +738,7 @@ int mastercore::GetEncodingClass(const CTransaction& tx, int nBlock)
      * Perform a string comparison on hex for each scriptPubKey & look directly for Exodus hash160 bytes or omni marker bytes
      * This allows to drop non-Omni transactions with less work
      */
-    std::string strClassC = "08776863";
+    std::string strClassC = "08777376";
     std::string strClassAB = "76a914946cb2e08075bcbaf157e47bcb67eb2b2339d24288ac";
     bool examineClosely = false;
     for (unsigned int n = 0; n < tx.vout.size(); ++n) {
@@ -4112,7 +4112,7 @@ const CTxDestination ExodusCrowdsaleAddress(int nBlock)
  */
 const std::vector<unsigned char> GetOmMarker()
 {
-    static unsigned char pch[] = {0x08, 0x77, 0x68, 0x63}; // Hex-encoded: "8whc"
+    static unsigned char pch[] = {0x08, 0x77, 0x73, 0x76}; // Hex-encoded: "8wsv"
 
     return std::vector<unsigned char>(pch, pch + sizeof(pch) / sizeof(pch[0]));
 }
