@@ -87,9 +87,9 @@ CMPSPInfo::CMPSPInfo(const boost::filesystem::path& path, bool fWipe)
     implied_omni.num_tokens = 0;
     implied_omni.category = "N/A";
     implied_omni.subcategory = "N/A";
-    implied_omni.name = "WHC";
-    implied_omni.url = "http://www.wormhole.cash";
-    implied_omni.data = "WHC serve as the binding between Bitcoin cash, smart properties and contracts created on the Wormhole.";
+    implied_omni.name = "WSV";
+    implied_omni.url = "http://wormholesv.cash";
+    implied_omni.data = "WSV serves as the binding between Bitcoin SV, smart properties and smart contracts created on Wormhole. We are dragons. We burn the world. We choose SV.";
     implied_omni.creation_block = uint256S("");
     implied_omni.update_block = uint256S("");
     init();
