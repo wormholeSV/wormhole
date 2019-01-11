@@ -53,7 +53,7 @@ int populateRPCTransactionObject(const uint256& txid, UniValue& txobj, std::stri
     // retrieve the transaction from the blockchain and obtain it's height/confs/time
     CTransactionRef tx;
     uint256 blockHash;
-    if (!GetTransaction(GetConfig(), TxId(const_cast<const uint256&>(txid)), tx, blockHash, true)) {
+    if (!GetTransaction(GlobalConfig::GetConfig(), TxId(const_cast<const uint256&>(txid)), tx, blockHash, true)) {
         return MP_TX_NOT_FOUND;
     }
 

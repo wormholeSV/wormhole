@@ -10,10 +10,10 @@
 
 /**
  * Name of client reported in the 'version' message. Report the same name
- * for both bitcoind and bitcoin-abc, to make it harder for attackers to
- * target servers or GUI users specifically.
+ * for both bitcoind and bitcoin-sv, to make it harder for attackers to
+ * target servers.
  */
-const std::string CLIENT_NAME("Bitcoin ABC");
+const std::string CLIENT_NAME("Bitcoin SV");
 
 /**
  * Client version number
@@ -81,14 +81,15 @@ const std::string CLIENT_NAME("Bitcoin ABC");
 
 const std::string CLIENT_BUILD(BUILD_DESC CLIENT_VERSION_SUFFIX);
 
-static std::string FormatVersion(int nVersion) {
+static std::string FormatVersion(int shiftedVersion) {
+	const int nVersion = shiftedVersion>_SV_VERSION_SHIFT ? shiftedVersion-_SV_VERSION_SHIFT : shiftedVersion;
     if (nVersion % 100 == 0)
         return strprintf("%d.%d.%d", nVersion / 1000000,
                          (nVersion / 10000) % 100, (nVersion / 100) % 100);
     else
         return strprintf("%d.%d.%d.%d", nVersion / 1000000,
                          (nVersion / 10000) % 100, (nVersion / 100) % 100,
-                         nVersion % 100);
+						 nVersion % 100);
 }
 
 std::string FormatFullVersion() {

@@ -1,6 +1,5 @@
 // Copyright (c) 2010 Satoshi Nakamoto
 // Copyright (c) 2009-2016 The Bitcoin Core developers
-// Copyright (c) 2017-2018 The Bitcoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -8,7 +7,6 @@
 #define BITCOIN_RPCSERVER_H
 
 #include "amount.h"
-#include "rpc/jsonrpcrequest.h"
 #include "rpc/protocol.h"
 #include "uint256.h"
 
@@ -22,23 +20,21 @@
 
 static const unsigned int DEFAULT_RPC_SERIALIZE_VERSION = 1;
 
-class ContextFreeRPCCommand;
+class CRPCCommand;
 
-namespace RPCServerSignals {
+namespace RPCServer {
 void OnStarted(std::function<void()> slot);
 void OnStopped(std::function<void()> slot);
-void OnPreCommand(std::function<void(const ContextFreeRPCCommand &)> slot);
-void OnPostCommand(std::function<void(const ContextFreeRPCCommand &)> slot);
-} // namespace RPCServerSignals
+void OnPreCommand(std::function<void(const CRPCCommand &)> slot);
+void OnPostCommand(std::function<void(const CRPCCommand &)> slot);
+} // namespace RPCServer
 
 class CBlockIndex;
 class Config;
 class CNetAddr;
 
-/**
- * Wrapper for UniValue::VType, which includes typeAny: used to denote don't
- * care type. Only used by RPCTypeCheckObj.
- */
+/** Wrapper for UniValue::VType, which includes typeAny:
+ * Used to denote don't care type. Only used by RPCTypeCheckObj */
 struct UniValueType {
     UniValueType(UniValue::VType _type) : typeAny(false), type(_type) {}
     UniValueType() : typeAny(true) {}
@@ -46,9 +42,25 @@ struct UniValueType {
     UniValue::VType type;
 };
 
-/**
- * Query whether RPC is running
- */
+class JSONRPCRequest {
+public:
+    UniValue id;
+    std::string strMethod;
+    UniValue params;
+    bool fHelp;
+    std::string URI;
+    std::string authUser;
+
+    JSONRPCRequest() {
+        id = NullUniValue;
+        params = NullUniValue;
+        fHelp = false;
+    }
+
+    void parse(const UniValue &valRequest);
+};
+
+/** Query whether RPC is running */
 bool IsRPCRunning();
 
 /**
@@ -56,15 +68,10 @@ bool IsRPCRunning();
  * immediately with RPC_IN_WARMUP.
  */
 void SetRPCWarmupStatus(const std::string &newStatus);
-
-/**
- * Mark warmup as done.  RPC calls will be processed from now on.
- */
+/* Mark warmup as done.  RPC calls will be processed from now on.  */
 void SetRPCWarmupFinished();
 
-/**
- * Returns the current warmup state
- */
+/* returns the current warmup state.  */
 bool RPCIsInWarmup(std::string *statusOut);
 
 /**
@@ -81,15 +88,14 @@ void RPCTypeCheck(const UniValue &params,
  */
 void RPCTypeCheckArgument(const UniValue &value, UniValue::VType typeExpected);
 
-/**
- * Check for expected keys/value types in an Object.
- */
+/*
+  Check for expected keys/value types in an Object.
+*/
 void RPCTypeCheckObj(const UniValue &o,
                      const std::map<std::string, UniValueType> &typesExpected,
                      bool fAllowNull = false, bool fStrict = false);
 
-/**
- * Opaque base class for timers returned by NewTimerFunc.
+/** Opaque base class for timers returned by NewTimerFunc.
  * This provides no methods at the moment, but makes sure that delete cleans up
  * the whole state.
  */
@@ -104,14 +110,9 @@ public:
 class RPCTimerInterface {
 public:
     virtual ~RPCTimerInterface() {}
-
-    /**
-     * Implementation name
-     */
+    /** Implementation name */
     virtual const char *Name() = 0;
-
-    /**
-     * Factory function for timers.
+    /** Factory function for timers.
      * RPC will call the function to create a timer that will call func in
      * *millis* milliseconds.
      * @note As the RPC mechanism is backend-neutral, it can use different
@@ -124,19 +125,11 @@ public:
                                    int64_t millis) = 0;
 };
 
-/**
- * Set the factory function for timers
- */
+/** Set the factory function for timers */
 void RPCSetTimerInterface(RPCTimerInterface *iface);
-
-/**
- * Set the factory function for timer, but only, if unset
- */
+/** Set the factory function for timer, but only, if unset */
 void RPCSetTimerInterfaceIfUnset(RPCTimerInterface *iface);
-
-/**
- * Unset factory function for timers
- */
+/** Unset factory function for timers */
 void RPCUnsetTimerInterface(RPCTimerInterface *iface);
 
 /**
@@ -151,7 +144,7 @@ typedef UniValue (*rpcfn_type)(Config &config,
 typedef UniValue (*const_rpcfn_type)(const Config &config,
                                      const JSONRPCRequest &jsonRequest);
 
-class ContextFreeRPCCommand {
+class CRPCCommand {
 public:
     std::string category;
     std::string name;
@@ -167,9 +160,8 @@ private:
 public:
     std::vector<std::string> argNames;
 
-    ContextFreeRPCCommand(std::string _category, std::string _name,
-                          rpcfn_type _actor, bool _okSafeMode,
-                          std::vector<std::string> _argNames)
+    CRPCCommand(std::string _category, std::string _name, rpcfn_type _actor,
+                bool _okSafeMode, std::vector<std::string> _argNames)
         : category{std::move(_category)}, name{std::move(_name)},
           okSafeMode{_okSafeMode}, useConstConfig{false}, argNames{std::move(
                                                               _argNames)} {
@@ -181,9 +173,9 @@ public:
      * can call the command through the proper pointer. Casting constness
      * on parameters of function is undefined behavior.
      */
-    ContextFreeRPCCommand(std::string _category, std::string _name,
-                          const_rpcfn_type _actor, bool _okSafeMode,
-                          std::vector<std::string> _argNames)
+    CRPCCommand(std::string _category, std::string _name,
+                const_rpcfn_type _actor, bool _okSafeMode,
+                std::vector<std::string> _argNames)
         : category{std::move(_category)}, name{std::move(_name)},
           okSafeMode{_okSafeMode}, useConstConfig{true}, argNames{std::move(
                                                              _argNames)} {
@@ -201,11 +193,11 @@ public:
  */
 class CRPCTable {
 private:
-    std::map<std::string, const ContextFreeRPCCommand *> mapCommands;
+    std::map<std::string, const CRPCCommand *> mapCommands;
 
 public:
     CRPCTable();
-    const ContextFreeRPCCommand *operator[](const std::string &name) const;
+    const CRPCCommand *operator[](const std::string &name) const;
     std::string help(Config &config, const std::string &name,
                      const JSONRPCRequest &helpreq) const;
 
@@ -224,19 +216,19 @@ public:
     std::vector<std::string> listCommands() const;
 
     /**
-     * Appends a ContextFreeRPCCommand to the dispatch table.
+     * Appends a CRPCCommand to the dispatch table.
      * Returns false if RPC server is already running (dump concurrency
      * protection).
      * Commands cannot be overwritten (returns false).
      */
-    bool appendCommand(const std::string &name,
-                       const ContextFreeRPCCommand *pcmd);
+    bool appendCommand(const std::string &name, const CRPCCommand *pcmd);
 };
 
 extern CRPCTable tableRPC;
 
 /**
- * Utilities: convert hex-encoded values (throws error if not hex).
+ * Utilities: convert hex-encoded Values
+ * (throws error if not hex).
  */
 extern uint256 ParseHashV(const UniValue &v, std::string strName);
 extern uint256 ParseHashO(const UniValue &o, std::string strKey);
@@ -244,7 +236,7 @@ extern std::vector<uint8_t> ParseHexV(const UniValue &v, std::string strName);
 extern std::vector<uint8_t> ParseHexO(const UniValue &o, std::string strKey);
 
 extern Amount AmountFromValue(const UniValue &value);
-extern UniValue ValueFromAmount(const Amount amount);
+extern UniValue ValueFromAmount(const Amount &amount);
 extern std::string HelpExampleCli(const std::string &methodname,
                                   const std::string &args);
 extern std::string HelpExampleRpc(const std::string &methodname,
@@ -257,9 +249,7 @@ std::string JSONRPCExecBatch(Config &config, const JSONRPCRequest &req,
                              const UniValue &vReq);
 void RPCNotifyBlockChange(bool ibd, const CBlockIndex *);
 
-/**
- * Retrieves any serialization flags requested in command line argument
- */
+// Retrieves any serialization flags requested in command line argument
 int RPCSerializationFlags();
 
 #endif // BITCOIN_RPCSERVER_H

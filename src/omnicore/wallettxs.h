@@ -5,7 +5,6 @@ class CCoinControl;
 class CPubKey;
 
 #include "script/standard.h"
-#include "primitives/transaction.h"
 
 #include <stdint.h>
 #include <string>

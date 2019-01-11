@@ -1,4 +1,4 @@
-# Copyright (c) 2017-2018 The Bitcoin developers
+# Copyright (c) 2017 The Bitcoin developers
 
 # This generates config.h which provides numerous defines
 # about the state of the plateform we are building on.
@@ -7,12 +7,12 @@ include(CheckIncludeFiles)
 include(CheckSymbolExists)
 
 # Package informations
-set(PACKAGE_NAME "Bitcoin ABC")
+set(PACKAGE_NAME "Bitcoin SV")
 
 # Version
 set(CLIENT_VERSION_MAJOR 0)
-set(CLIENT_VERSION_MINOR 18)
-set(CLIENT_VERSION_REVISION 2)
+set(CLIENT_VERSION_MINOR 1)
+set(CLIENT_VERSION_REVISION 0)
 set(CLIENT_VERSION_BUILD 0)
 
 option(CLIENT_VERSION_IS_RELEASE "Build a release version" OFF)
@@ -108,7 +108,6 @@ check_builtin_exist(__builtin_clzll HAVE_DECL___BUILTIN_CLZLL)
 
 # Various system libraries
 check_symbol_exists(strnlen "string.h" HAVE_DECL_STRNLEN)
-check_symbol_exists(daemon "unistd.h" HAVE_DECL_DAEMON)
 
 # OpenSSL functionality
 include(BrewHelper)

@@ -13,8 +13,6 @@
 
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import *
-from test_framework.blocktools import mine_big_block
-
 import time
 import os
 
@@ -71,7 +69,7 @@ class PruneTest(BitcoinTestFramework):
         self.nodes[0].generate(150)
         # Then mine enough full blocks to create more than 550MiB of data
         for i in range(645):
-            mine_big_block(self.nodes[0], self.utxo_cache_0)
+            mine_large_block(self.nodes[0], self.utxo_cache_0)
 
         sync_blocks(self.nodes[0:5])
 
@@ -86,7 +84,7 @@ class PruneTest(BitcoinTestFramework):
         # Pruning doesn't run until we're allocating another chunk, 20 full
         # blocks past the height cutoff will ensure this
         for i in range(25):
-            mine_big_block(self.nodes[0], self.utxo_cache_0)
+            mine_large_block(self.nodes[0], self.utxo_cache_0)
 
         waitstart = time.time()
         while os.path.isfile(self.prunedir + "blk00000.dat"):
@@ -116,7 +114,7 @@ class PruneTest(BitcoinTestFramework):
             # Mine 24 blocks in node 1
             for i in range(24):
                 if j == 0:
-                    mine_big_block(self.nodes[1], self.utxo_cache_1)
+                    mine_large_block(self.nodes[1], self.utxo_cache_1)
                 else:
                     # Add node1's wallet transactions back to the mempool, to
                     # avoid the mined blocks from being too small.
@@ -126,7 +124,7 @@ class PruneTest(BitcoinTestFramework):
 
             # Reorg back with 25 block chain from node 0
             for i in range(25):
-                mine_big_block(self.nodes[0], self.utxo_cache_0)
+                mine_large_block(self.nodes[0], self.utxo_cache_0)
 
             # Create connections in the order so both nodes can see the reorg
             # at the same time

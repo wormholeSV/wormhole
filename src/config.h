@@ -6,7 +6,8 @@
 #define BITCOIN_CONFIG_H
 
 #include "amount.h"
-#include "feerate.h"
+#include "consensus/consensus.h"
+#include "policy/policy.h"
 
 #include <boost/noncopyable.hpp>
 
@@ -20,8 +21,8 @@ class Config : public boost::noncopyable {
 public:
     virtual bool SetMaxBlockSize(uint64_t maxBlockSize) = 0;
     virtual uint64_t GetMaxBlockSize() const = 0;
-    virtual bool
-    SetBlockPriorityPercentage(int64_t blockPriorityPercentage) = 0;
+    virtual bool MaxBlockSizeOverridden() const = 0;
+    virtual bool SetBlockPriorityPercentage(int64_t blockPriorityPercentage) = 0;
     virtual uint8_t GetBlockPriorityPercentage() const = 0;
     virtual const CChainParams &GetChainParams() const = 0;
     virtual void SetCashAddrEncoding(bool) = 0;
@@ -32,18 +33,14 @@ public:
 
     virtual void SetMinFeePerKB(CFeeRate amt) = 0;
     virtual CFeeRate GetMinFeePerKB() const = 0;
-
-    virtual void SetRPCUserAndPassword(std::string userAndPassword) = 0;
-    virtual std::string GetRPCUserAndPassword() const = 0;
-    virtual void SetRPCCORSDomain(std::string corsDomain) = 0;
-    virtual std::string GetRPCCORSDomain() const = 0;
 };
 
 class GlobalConfig final : public Config {
 public:
-    GlobalConfig();
+    GlobalConfig() = default;
     bool SetMaxBlockSize(uint64_t maxBlockSize) override;
     uint64_t GetMaxBlockSize() const override;
+    bool MaxBlockSizeOverridden() const override;
     bool SetBlockPriorityPercentage(int64_t blockPriorityPercentage) override;
     uint8_t GetBlockPriorityPercentage() const override;
     const CChainParams &GetChainParams() const override;
@@ -56,15 +53,17 @@ public:
     void SetMinFeePerKB(CFeeRate amt) override;
     CFeeRate GetMinFeePerKB() const override;
 
-    void SetRPCUserAndPassword(std::string userAndPassword) override;
-    std::string GetRPCUserAndPassword() const override;
-    void SetRPCCORSDomain(std::string corsDomain) override;
-    std::string GetRPCCORSDomain() const override;
+    void SetMaxBlockSizeOverridden(bool overridden);    // For unit testing only
+
+    static GlobalConfig& GetConfig();
 
 private:
-    bool useCashAddr;
-    Amount excessUTXOCharge;
-    CFeeRate feePerKB;
+    bool useCashAddr { false };
+    Amount excessUTXOCharge {};
+    CFeeRate feePerKB {};
+    uint64_t maxBlockSize { DEFAULT_MAX_BLOCK_SIZE };
+    bool maxBlockSizeOverridden { false };
+    uint64_t blockPriorityPercentage { DEFAULT_BLOCK_PRIORITY_PERCENTAGE };
 };
 
 // Dummy for subclassing in unittests
@@ -74,6 +73,7 @@ public:
     DummyConfig(std::string net);
     bool SetMaxBlockSize(uint64_t maxBlockSize) override { return false; }
     uint64_t GetMaxBlockSize() const override { return 0; }
+    bool MaxBlockSizeOverridden() const override { return false; }
     bool SetBlockPriorityPercentage(int64_t blockPriorityPercentage) override {
         return false;
     }
@@ -86,23 +86,13 @@ public:
     bool UseCashAddrEncoding() const override { return false; }
 
     void SetExcessUTXOCharge(Amount amt) override {}
-    Amount GetExcessUTXOCharge() const override { return Amount::zero(); }
+    Amount GetExcessUTXOCharge() const override { return Amount(0); }
 
     void SetMinFeePerKB(CFeeRate amt) override{};
-    CFeeRate GetMinFeePerKB() const override {
-        return CFeeRate(Amount::zero());
-    }
-
-    void SetRPCUserAndPassword(std::string userAndPassword) override{};
-    std::string GetRPCUserAndPassword() const override { return ""; };
-    void SetRPCCORSDomain(std::string corsDomain) override{};
-    std::string GetRPCCORSDomain() const override { return ""; };
+    CFeeRate GetMinFeePerKB() const override { return CFeeRate(Amount(0)); }
 
 private:
     std::unique_ptr<CChainParams> chainParams;
 };
-
-// Temporary woraround.
-const Config &GetConfig();
 
 #endif

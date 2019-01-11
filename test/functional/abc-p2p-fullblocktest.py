@@ -22,9 +22,6 @@ from test_framework.cdefs import (ONE_MEGABYTE, LEGACY_MAX_BLOCK_SIZE,
                                   MAX_BLOCK_SIGOPS_PER_MB, MAX_TX_SIGOPS_COUNT)
 from collections import deque
 
-REPLAY_PROTECTION_START_TIME = 2000000000
-
-
 class PreviousSpendableOutput():
 
     def __init__(self, tx=CTransaction(), n=-1):
@@ -46,8 +43,8 @@ class FullBlockTest(ComparisonTestFramework):
         self.blocks = {}
         self.excessive_block_size = 100 * ONE_MEGABYTE
         self.extra_args = [['-whitelist=127.0.0.1',
-                            "-replayprotectionactivationtime=%d" % REPLAY_PROTECTION_START_TIME,
-                            "-excessiveblocksize=%d" % self.excessive_block_size]]
+                            "-excessiveblocksize=%d"
+                            % self.excessive_block_size]]
 
     def add_options(self, parser):
         super().add_options(parser)
@@ -246,19 +243,26 @@ class FullBlockTest(ComparisonTestFramework):
         # Let's build some blocks and test them.
         for i in range(16):
             n = i + 1
-            block(n, spend=out[i], block_size=n * ONE_MEGABYTE)
+            block(n, spend=out[i], block_size=n * ONE_MEGABYTE // 2)
             yield accepted()
 
         # block of maximal size
         block(17, spend=out[16], block_size=self.excessive_block_size)
         yield accepted()
 
-        # Reject oversized blocks with bad-blk-length error
+        # Oversized blocks will cause us to be disconnected
+        assert(not self.test.test_nodes[0].closed)
         block(18, spend=out[17], block_size=self.excessive_block_size + 1)
-        yield rejected(RejectResult(16, b'bad-blk-length'))
+        self.test.connections[0].send_message(msg_block((self.tip)))
+        self.test.wait_for_disconnections()
+        assert(self.test.test_nodes[0].closed)
 
-        # Rewind bad block.
+        # Rewind bad block and remake connection to node
         tip(17)
+        self.test.clear_all_connections()
+        self.test.add_all_connections(self.nodes)
+        NetworkThread().start()
+        self.test.wait_for_verack()
 
         # Accept many sigops
         lots_of_checksigs = CScript(

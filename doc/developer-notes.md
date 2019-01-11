@@ -1,6 +1,9 @@
 Developer Notes
 ===============
 
+These notes will be updated for Bitcoin SV when the Bitcoin SV team begin
+accepting code contributions.
+
 Various coding styles have been used during the history of the codebase,
 and the result is not very consistent. However, we're now trying to converge to
 a single style, so please use it in new code. Old code will be converted
@@ -177,14 +180,29 @@ error and debugging messages are written there.
 The -debug=... command-line option controls debugging; running with just -debug or -debug=1 will turn
 on all categories (and give you a very large debug.log file).
 
-The Qt code routes qDebug() output to debug.log under category "qt": run with -debug=qt
-to see it.
+**running and debugging tests**
 
-**writing tests**
+Unit tests are run via `make check`
+For running functional tests, see `/test/README.md`
 
-For details on unit tests, see `unit-tests.md`
+Simple example of debugging unit tests with GDB on Linux:
+```
+cd /build/src/test
+gdb test_bitcoin
+break interpreter.cpp:295  # No path is necessary, just the file name and line number
+run
+# GDB hits the breakpoint
+p/x opcode  # print the value of the variable (in this case, opcode) in hex
+c           # continue
+```
 
-For details on functional tests, see `functional-tests.md`
+Simple example of debugging unit tests with LLDB (OSX or Linux):
+```
+cd /build/src/test
+lldb -- test_bitcoin
+break set --file interpreter.cpp --line 295
+run
+```
 
 **writing script integration tests**
 
@@ -435,15 +453,6 @@ Source code organization
 
   - *Rationale*: Avoids symbol conflicts
 
-GUI
------
-
-- Do not display or manipulate dialogs in model code (classes `*Model`)
-
-  - *Rationale*: Model classes pass through events and data from the core, they
-    should not interact with the user. That's where View classes come in. The converse also
-    holds: try to not directly access core data structures from Views.
-
 Subtrees
 ----------
 
@@ -480,9 +489,6 @@ Git and GitHub tips
 
 - Github is not typically the source of truth for pull requests.  See CONTRIBUTING.md for instructions
   on setting up your repo correctly.
-
-- Similarly, your git remote origin should be set to: `ssh://vcs@reviews.bitcoinabc.org:2221/source/bitcoin-abc.git`
-  instead of github.com.  See CONTRIBUTING.md for details.
 
 - For resolving merge/rebase conflicts, it can be useful to enable diff3 style using
   `git config merge.conflictstyle diff3`. Instead of

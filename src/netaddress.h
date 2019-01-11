@@ -21,7 +21,6 @@ enum Network {
     NET_IPV4,
     NET_IPV6,
     NET_TOR,
-    NET_INTERNAL,
 
     NET_MAX,
 };
@@ -45,12 +44,6 @@ public:
      * @note Only NET_IPV4 and NET_IPV6 are allowed for network.
      */
     void SetRaw(Network network, const uint8_t *data);
-
-    /**
-     * Transform an arbitrary string into a non-routable ipv6 address.
-     * Useful for mapping resolved addresses back to their source.
-     */
-    bool SetInternal(const std::string &name);
 
     // for Tor addresses
     bool SetSpecial(const std::string &strName);
@@ -88,7 +81,6 @@ public:
     bool IsTor() const;
     bool IsLocal() const;
     bool IsRoutable() const;
-    bool IsInternal() const;
     bool IsValid() const;
     enum Network GetNetwork() const;
     std::string ToString() const;

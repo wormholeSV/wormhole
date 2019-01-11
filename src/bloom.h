@@ -7,7 +7,6 @@
 
 #include "serialize.h"
 
-#include <cstdint>
 #include <vector>
 
 class COutPoint;
@@ -15,8 +14,8 @@ class CTransaction;
 class uint256;
 
 //! 20,000 items with fp rate < 0.1% or 10,000 items and <0.0001%
-static const uint32_t MAX_BLOOM_FILTER_SIZE = 36000; // bytes
-static const uint32_t MAX_HASH_FUNCS = 50;
+static const unsigned int MAX_BLOOM_FILTER_SIZE = 36000; // bytes
+static const unsigned int MAX_HASH_FUNCS = 50;
 
 /**
  * First two bits of nFlags control how much IsRelevantAndUpdate actually
@@ -47,15 +46,15 @@ private:
     std::vector<uint8_t> vData;
     bool isFull;
     bool isEmpty;
-    uint32_t nHashFuncs;
-    uint32_t nTweak;
+    unsigned int nHashFuncs;
+    unsigned int nTweak;
     uint8_t nFlags;
 
-    uint32_t Hash(uint32_t nHashNum,
-                  const std::vector<uint8_t> &vDataToHash) const;
+    unsigned int Hash(unsigned int nHashNum,
+                      const std::vector<uint8_t> &vDataToHash) const;
 
     // Private constructor for CRollingBloomFilter, no restrictions on size
-    CBloomFilter(uint32_t nElements, double nFPRate, uint32_t nTweak);
+    CBloomFilter(unsigned int nElements, double nFPRate, unsigned int nTweak);
     friend class CRollingBloomFilter;
 
 public:
@@ -70,7 +69,7 @@ public:
      * always be a random value (and is largely only exposed for unit testing)
      * nFlags should be one of the BLOOM_UPDATE_* enums (not _MASK)
      */
-    CBloomFilter(uint32_t nElements, double nFPRate, uint32_t nTweak,
+    CBloomFilter(unsigned int nElements, double nFPRate, unsigned int nTweak,
                  uint8_t nFlagsIn);
     CBloomFilter()
         : isFull(true), isEmpty(false), nHashFuncs(0), nTweak(0), nFlags(0) {}
@@ -94,7 +93,7 @@ public:
     bool contains(const uint256 &hash) const;
 
     void clear();
-    void reset(uint32_t nNewTweak);
+    void reset(unsigned int nNewTweak);
 
     //! True if the size is <= MAX_BLOOM_FILTER_SIZE and the number of hash
     //! functions is <= MAX_HASH_FUNCS (catch a filter which was just
@@ -128,7 +127,7 @@ public:
     // A random bloom filter calls GetRand() at creation time. Don't create
     // global CRollingBloomFilter objects, as they may be constructed before the
     // randomizer is properly initialized.
-    CRollingBloomFilter(uint32_t nElements, double nFPRate);
+    CRollingBloomFilter(unsigned int nElements, double nFPRate);
 
     void insert(const std::vector<uint8_t> &vKey);
     void insert(const uint256 &hash);
@@ -142,7 +141,7 @@ private:
     int nEntriesThisGeneration;
     int nGeneration;
     std::vector<uint64_t> data;
-    uint32_t nTweak;
+    unsigned int nTweak;
     int nHashFuncs;
 };
 

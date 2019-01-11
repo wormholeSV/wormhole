@@ -31,7 +31,6 @@ typedef enum ScriptError_t {
     SCRIPT_ERR_EQUALVERIFY,
     SCRIPT_ERR_CHECKMULTISIGVERIFY,
     SCRIPT_ERR_CHECKSIGVERIFY,
-    SCRIPT_ERR_CHECKDATASIGVERIFY,
     SCRIPT_ERR_NUMEQUALVERIFY,
 
     /* Logical/Format/Canonical errors */
@@ -77,23 +76,5 @@ typedef enum ScriptError_t {
 #define SCRIPT_ERR_LAST SCRIPT_ERR_ERROR_COUNT
 
 const char *ScriptErrorString(const ScriptError error);
-
-namespace {
-
-inline bool set_success(ScriptError *ret) {
-    if (ret) {
-        *ret = SCRIPT_ERR_OK;
-    }
-    return true;
-}
-
-inline bool set_error(ScriptError *ret, const ScriptError serror) {
-    if (ret) {
-        *ret = serror;
-    }
-    return false;
-}
-
-} // namespace
 
 #endif // BITCOIN_SCRIPT_SCRIPT_ERROR_H

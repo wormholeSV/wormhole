@@ -730,43 +730,43 @@ void TorController::reconnect_cb(evutil_socket_t fd, short what, void *arg) {
 }
 
 /****** Thread ********/
-static struct event_base *gBase;
-static std::thread torControlThread;
+struct event_base *base;
+boost::thread torControlThread;
 
 static void TorControlThread() {
-    TorController ctrl(gBase, gArgs.GetArg("-torcontrol", DEFAULT_TOR_CONTROL));
+    TorController ctrl(base, gArgs.GetArg("-torcontrol", DEFAULT_TOR_CONTROL));
 
-    event_base_dispatch(gBase);
+    event_base_dispatch(base);
 }
 
-void StartTorControl() {
-    assert(!gBase);
+void StartTorControl(boost::thread_group &threadGroup, CScheduler &scheduler) {
+    assert(!base);
 #ifdef WIN32
     evthread_use_windows_threads();
 #else
     evthread_use_pthreads();
 #endif
-    gBase = event_base_new();
-    if (!gBase) {
+    base = event_base_new();
+    if (!base) {
         LogPrintf("tor: Unable to create event_base\n");
         return;
     }
 
-    torControlThread = std::thread(
-        std::bind(&TraceThread<void (*)()>, "torcontrol", &TorControlThread));
+    torControlThread = boost::thread(
+        boost::bind(&TraceThread<void (*)()>, "torcontrol", &TorControlThread));
 }
 
 void InterruptTorControl() {
-    if (gBase) {
+    if (base) {
         LogPrintf("tor: Thread interrupt\n");
-        event_base_loopbreak(gBase);
+        event_base_loopbreak(base);
     }
 }
 
 void StopTorControl() {
-    if (gBase) {
+    if (base) {
         torControlThread.join();
-        event_base_free(gBase);
-        gBase = nullptr;
+        event_base_free(base);
+        base = 0;
     }
 }

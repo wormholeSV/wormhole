@@ -878,7 +878,7 @@ bool CMPTransaction::interpret_FreezeTokens()
     swapByteOrder64(nValue);
     nNewValue = nValue;
 
-    const CChainParams &param = GetConfig().GetChainParams();
+    const CChainParams &param = GlobalConfig::GetConfig().GetChainParams();
     const char* destaddr = (char*)&pkt[16];
     UniValue unfreezaddr(destaddr);
 
@@ -913,7 +913,7 @@ bool CMPTransaction::interpret_UnfreezeTokens()
     memcpy(&nValue, &pkt[8], 8);
     swapByteOrder64(nValue);
     nNewValue = nValue;
-    const CChainParams &param = GetConfig().GetChainParams();
+    const CChainParams &param = GlobalConfig::GetConfig().GetChainParams();
     const char* destaddr = (char*)&pkt[16];
     UniValue unfreezaddr(destaddr);
 

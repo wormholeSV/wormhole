@@ -71,7 +71,7 @@ static const std::vector<std::string>
 CMessageHeader::CMessageHeader(const MessageMagic &pchMessageStartIn) {
     memcpy(std::begin(pchMessageStart), std::begin(pchMessageStartIn),
            MESSAGE_START_SIZE);
-    memset(pchCommand.data(), 0, sizeof(pchCommand));
+    memset(pchCommand, 0, sizeof(pchCommand));
     nMessageSize = -1;
     memset(pchChecksum, 0, CHECKSUM_SIZE);
 }
@@ -81,17 +81,15 @@ CMessageHeader::CMessageHeader(const MessageMagic &pchMessageStartIn,
                                unsigned int nMessageSizeIn) {
     memcpy(std::begin(pchMessageStart), std::begin(pchMessageStartIn),
            MESSAGE_START_SIZE);
-    memset(pchCommand.data(), 0, sizeof(pchCommand));
-    strncpy(pchCommand.data(), pszCommand, COMMAND_SIZE);
+    memset(pchCommand, 0, sizeof(pchCommand));
+    strncpy(pchCommand, pszCommand, COMMAND_SIZE);
     nMessageSize = nMessageSizeIn;
     memset(pchChecksum, 0, CHECKSUM_SIZE);
 }
 
 std::string CMessageHeader::GetCommand() const {
-    // return std::string(pchCommand.begin(), pchCommand.end());
-    return std::string(pchCommand.data(),
-                       pchCommand.data() +
-                           strnlen(pchCommand.data(), COMMAND_SIZE));
+    return std::string(pchCommand,
+                       pchCommand + strnlen(pchCommand, COMMAND_SIZE));
 }
 
 static bool
@@ -104,11 +102,11 @@ CheckHeaderMagicAndCommand(const CMessageHeader &header,
     }
 
     // Check the command string for errors
-    for (const char *p1 = header.pchCommand.data();
-         p1 < header.pchCommand.data() + CMessageHeader::COMMAND_SIZE; p1++) {
+    for (const char *p1 = header.pchCommand;
+         p1 < header.pchCommand + CMessageHeader::COMMAND_SIZE; p1++) {
         if (*p1 == 0) {
             // Must be all zeros after the first zero
-            for (; p1 < header.pchCommand.data() + CMessageHeader::COMMAND_SIZE;
+            for (; p1 < header.pchCommand + CMessageHeader::COMMAND_SIZE;
                  p1++) {
                 if (*p1 != 0) {
                     return false;
@@ -171,8 +169,8 @@ bool CMessageHeader::IsOversized(const Config &config) const {
         return true;
     }
 
-    // Scale the maximum accepted size with the block size.
-    if (nMessageSize > 2 * config.GetMaxBlockSize()) {
+    // maximum accepted size with the block size.
+    if (nMessageSize > config.GetMaxBlockSize()) {
         return true;
     }
 

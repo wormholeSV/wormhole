@@ -1,5 +1,6 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2016 The Bitcoin Core developers
+// Copyright (c) 2018 The Bitcoin SV developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -8,16 +9,18 @@
 
 #include <cstdint>
 
+/** 1KB */
+static const uint64_t ONE_KILOBYTE = 1000;
 /** 1MB */
-static const uint64_t ONE_MEGABYTE = 1000000;
+static const uint64_t ONE_MEGABYTE = ONE_KILOBYTE * 1000;
 /** The maximum allowed size for a transaction, in bytes */
 static const uint64_t MAX_TX_SIZE = ONE_MEGABYTE;
-/** The minimum allowed size for a transaction, in bytes */
-static const uint64_t MIN_TX_SIZE = 100;
 /** The maximum allowed size for a block, before the UAHF */
 static const uint64_t LEGACY_MAX_BLOCK_SIZE = ONE_MEGABYTE;
 /** Default setting for maximum allowed size for a block, in bytes */
-static const uint64_t DEFAULT_MAX_BLOCK_SIZE = 32 * ONE_MEGABYTE;
+static const uint64_t DEFAULT_MAX_BLOCK_SIZE = 128 * ONE_MEGABYTE;
+/** Pre Nov 2018 default setting for maximum allowed size for a block, in bytes */
+static const uint64_t LEGACY_DEFAULT_MAX_BLOCK_SIZE = 32 * ONE_MEGABYTE;
 /**
  * The maximum allowed number of signature check operations per MB in a block
  * (network rule).
@@ -30,8 +33,6 @@ static const uint64_t MAX_TX_SIGOPS_COUNT = 20000;
  * blocks (network rule).
  */
 static const int COINBASE_MATURITY = 100;
-/** Coinbase scripts have their own script size limit. */
-static const int MAX_COINBASE_SCRIPTSIG_SIZE = 100;
 /** Activation time for P2SH (April 1st 2012) */
 static const int64_t P2SH_ACTIVATION_TIME = 1333234914;
 

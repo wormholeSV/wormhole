@@ -21,8 +21,6 @@ include_directories(omnicore)
 include_directories(omnicore/test)
 include_directories(policy)
 include_directories(primitives)
-include_directories(qt)
-include_directories(qt/test)
 include_directories(rpc)
 include_directories(script)
 include_directories(secp256k1/contrib)
@@ -338,127 +336,6 @@ add_executable(src
         primitives/block.h
         primitives/transaction.cpp
         primitives/transaction.h
-        qt/test/bitcoinaddressvalidatortests.cpp
-        qt/test/bitcoinaddressvalidatortests.h
-        qt/test/compattests.cpp
-        qt/test/compattests.h
-        qt/test/guiutiltests.cpp
-        qt/test/guiutiltests.h
-        qt/test/paymentrequestdata.h
-        qt/test/paymentservertests.cpp
-        qt/test/paymentservertests.h
-        qt/test/rpcnestedtests.cpp
-        qt/test/rpcnestedtests.h
-        qt/test/test_main.cpp
-        qt/test/uritests.cpp
-        qt/test/uritests.h
-        qt/test/wallettests.cpp
-        qt/test/wallettests.h
-        qt/addressbookpage.cpp
-        qt/addressbookpage.h
-        qt/addresstablemodel.cpp
-        qt/addresstablemodel.h
-        qt/askpassphrasedialog.cpp
-        qt/askpassphrasedialog.h
-        qt/bantablemodel.cpp
-        qt/bantablemodel.h
-        qt/bitcoin.cpp
-        qt/bitcoinaddressvalidator.cpp
-        qt/bitcoinaddressvalidator.h
-        qt/bitcoinamountfield.cpp
-        qt/bitcoinamountfield.h
-        qt/bitcoingui.cpp
-        qt/bitcoingui.h
-        qt/bitcoinstrings.cpp
-        qt/bitcoinunits.cpp
-        qt/bitcoinunits.h
-        qt/clientmodel.cpp
-        qt/clientmodel.h
-        qt/coincontroldialog.cpp
-        qt/coincontroldialog.h
-        qt/coincontroltreewidget.cpp
-        qt/coincontroltreewidget.h
-        qt/csvmodelwriter.cpp
-        qt/csvmodelwriter.h
-        qt/editaddressdialog.cpp
-        qt/editaddressdialog.h
-        qt/guiconstants.h
-        qt/guiutil.cpp
-        qt/guiutil.h
-        qt/intro.cpp
-        qt/intro.h
-        qt/macdockiconhandler.h
-        qt/macdockiconhandler.mm
-        qt/macnotificationhandler.h
-        qt/macnotificationhandler.mm
-        qt/modaloverlay.cpp
-        qt/modaloverlay.h
-        qt/networkstyle.cpp
-        qt/networkstyle.h
-        qt/notificator.cpp
-        qt/notificator.h
-        qt/openuridialog.cpp
-        qt/openuridialog.h
-        qt/optionsdialog.cpp
-        qt/optionsdialog.h
-        qt/optionsmodel.cpp
-        qt/optionsmodel.h
-        qt/overviewpage.cpp
-        qt/overviewpage.h
-        qt/paymentrequestplus.cpp
-        qt/paymentrequestplus.h
-        qt/paymentserver.cpp
-        qt/paymentserver.h
-        qt/peertablemodel.cpp
-        qt/peertablemodel.h
-        qt/platformstyle.cpp
-        qt/platformstyle.h
-        qt/qvalidatedlineedit.cpp
-        qt/qvalidatedlineedit.h
-        qt/qvaluecombobox.cpp
-        qt/qvaluecombobox.h
-        qt/receivecoinsdialog.cpp
-        qt/receivecoinsdialog.h
-        qt/receiverequestdialog.cpp
-        qt/receiverequestdialog.h
-        qt/recentrequeststablemodel.cpp
-        qt/recentrequeststablemodel.h
-        qt/rpcconsole.cpp
-        qt/rpcconsole.h
-        qt/sendcoinsdialog.cpp
-        qt/sendcoinsdialog.h
-        qt/sendcoinsentry.cpp
-        qt/sendcoinsentry.h
-        qt/signverifymessagedialog.cpp
-        qt/signverifymessagedialog.h
-        qt/splashscreen.cpp
-        qt/splashscreen.h
-        qt/trafficgraphwidget.cpp
-        qt/trafficgraphwidget.h
-        qt/transactiondesc.cpp
-        qt/transactiondesc.h
-        qt/transactiondescdialog.cpp
-        qt/transactiondescdialog.h
-        qt/transactionfilterproxy.cpp
-        qt/transactionfilterproxy.h
-        qt/transactionrecord.cpp
-        qt/transactionrecord.h
-        qt/transactiontablemodel.cpp
-        qt/transactiontablemodel.h
-        qt/transactionview.cpp
-        qt/transactionview.h
-        qt/utilitydialog.cpp
-        qt/utilitydialog.h
-        qt/walletframe.cpp
-        qt/walletframe.h
-        qt/walletmodel.cpp
-        qt/walletmodel.h
-        qt/walletmodeltransaction.cpp
-        qt/walletmodeltransaction.h
-        qt/walletview.cpp
-        qt/walletview.h
-        qt/winshutdownmonitor.cpp
-        qt/winshutdownmonitor.h
         rpc/abc.cpp
         rpc/blockchain.cpp
         rpc/blockchain.h
@@ -751,8 +628,6 @@ add_executable(src
         dstencode.h
         fs.cpp
         fs.h
-        globals.cpp
-        globals.h
         hash.cpp
         hash.h
         httprpc.cpp
@@ -836,4 +711,3 @@ add_executable(src
         versionbits.h
         warnings.cpp
         warnings.h)
-

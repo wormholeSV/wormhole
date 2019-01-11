@@ -72,7 +72,8 @@ class FullBlockTest(ComparisonTestFramework):
         self.block_heights = {}
         self.tip = None
         self.blocks = {}
-        self.excessive_block_size = 16 * ONE_MEGABYTE
+        # excessive_block_size needs to be > generated block size
+        self.excessive_block_size = 64 * ONE_MEGABYTE
         self.extra_args = [['-norelaypriority',
                             '-whitelist=127.0.0.1',
                             '-limitancestorcount=999999',
@@ -80,7 +81,8 @@ class FullBlockTest(ComparisonTestFramework):
                             '-limitdescendantcount=999999',
                             '-limitdescendantsize=999999',
                             '-maxmempool=99999',
-                            "-excessiveblocksize=%d" % self.excessive_block_size]]
+                            "-excessiveblocksize=%d"
+                            % self.excessive_block_size]]
 
     def add_options(self, parser):
         super().add_options(parser)
@@ -267,11 +269,6 @@ class FullBlockTest(ComparisonTestFramework):
             block(5000 + i)
             test.blocks_and_transactions.append([self.tip, True])
             save_spendable_output()
-
-        # Get to one block of the May 15, 2018 HF activation
-        for i in range(6):
-            block(5100 + i)
-            test.blocks_and_transactions.append([self.tip, True])
 
         # Send it all to the node at once.
         yield test

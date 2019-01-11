@@ -1,6 +1,7 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2016 The Bitcoin Core developers
 // Copyright (c) 2017-2018 The Bitcoin developers
+// Copyright (c) 2018 The Bitcoin SV developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -95,9 +96,9 @@ enum {
     //
     SCRIPT_ENABLE_REPLAY_PROTECTION = (1U << 17),
 
-    // Is OP_CHECKDATASIG and variant are enabled.
+    // Are the Magnetic upgrade opcodes enabled?
     //
-    SCRIPT_ENABLE_CHECKDATASIG = (1U << 18),
+    SCRIPT_ENABLE_MAGNETIC_OPCODES = (1U << 19),
 };
 
 #endif // BITCOIN_SCRIPT_SCRIPTFLAGS_H

@@ -549,7 +549,7 @@ UniValue whc_getpayload(const Config &config, const JSONRPCRequest &request) {
 
     CTransactionRef tx;
     uint256 blockHash;
-    if (!GetTransaction(GetConfig(), TxId(const_cast<const uint256 &>(txid)), tx, blockHash, true)) {
+    if (!GetTransaction(GlobalConfig::GetConfig(), TxId(const_cast<const uint256 &>(txid)), tx, blockHash, true)) {
         PopulateFailure(MP_TX_NOT_FOUND);
     }
 
@@ -1235,7 +1235,7 @@ UniValue whc_getcrowdsale(const Config &config, const JSONRPCRequest &request) {
 
     CTransactionRef tx;
     uint256 hashBlock;
-    if (!GetTransaction(GetConfig(), TxId(creationHash), tx, hashBlock, true)) {
+    if (!GetTransaction(GlobalConfig::GetConfig(), TxId(creationHash), tx, hashBlock, true)) {
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available about transaction");
     }
 
@@ -1361,7 +1361,7 @@ UniValue whc_getactivecrowdsales(const Config &config, const JSONRPCRequest &req
 
         CTransactionRef tx;
         uint256 hashBlock;
-        if (!GetTransaction(GetConfig(), TxId(creationHash), tx, hashBlock, true)) {
+        if (!GetTransaction(GlobalConfig::GetConfig(), TxId(creationHash), tx, hashBlock, true)) {
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available about transaction");
         }
 
@@ -1816,7 +1816,7 @@ UniValue whc_listblocktransactions(const Config &config, const JSONRPCRequest &r
         LOCK(cs_main);
         CBlockIndex *pBlockIndex = chainActive[blockHeight];
 
-        if (!ReadBlockFromDisk(block, pBlockIndex, GetConfig())) {
+        if (!ReadBlockFromDisk(block, pBlockIndex, GlobalConfig::GetConfig())) {
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Failed to read block from disk");
         }
     }
@@ -2713,7 +2713,7 @@ UniValue whc_getERC721PropertyDestroyTokens(const Config &config, const JSONRPCR
     return response;
 }
 
-static const ContextFreeRPCCommand commands[] =
+static const CRPCCommand commands[] =
         { //  category                             name                            actor (function)               okSafeMode
                 //  ------------------------------------ ------------------------------- ------------------------------ ----------
                 //change_003

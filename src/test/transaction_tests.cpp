@@ -1,5 +1,4 @@
 // Copyright (c) 2011-2016 The Bitcoin Core developers
-// Copyright (c) 2017-2018 The Bitcoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -7,11 +6,8 @@
 #include "data/tx_valid.json.h"
 #include "test/test_bitcoin.h"
 
-#include "chainparams.h" // For CChainParams
 #include "checkqueue.h"
 #include "clientversion.h"
-#include "config.h"
-#include "consensus/tx_verify.h"
 #include "consensus/validation.h"
 #include "core_io.h"
 #include "key.h"
@@ -24,7 +20,7 @@
 #include "test/jsonutil.h"
 #include "test/scriptflags.h"
 #include "utilstrencodings.h"
-#include "validation.h"
+#include "validation.h" // For CheckRegularTransaction
 
 #include <map>
 #include <string>
@@ -82,8 +78,7 @@ BOOST_AUTO_TEST_CASE(tx_valid) {
                 mapprevOutScriptPubKeys[outpoint] =
                     ParseScript(vinput[2].get_str());
                 if (vinput.size() >= 4) {
-                    mapprevOutValues[outpoint] =
-                        vinput[3].get_int64() * SATOSHI;
+                    mapprevOutValues[outpoint] = Amount(vinput[3].get_int64());
                 }
             }
             if (!fValid) {
@@ -110,9 +105,9 @@ BOOST_AUTO_TEST_CASE(tx_valid) {
                     break;
                 }
 
-                Amount amount = Amount::zero();
+                Amount amount(0);
                 if (mapprevOutValues.count(tx.vin[i].prevout)) {
-                    amount = mapprevOutValues[tx.vin[i].prevout];
+                    amount = Amount(mapprevOutValues[tx.vin[i].prevout]);
                 }
 
                 uint32_t verify_flags = ParseScriptFlags(test[2].get_str());
@@ -174,8 +169,7 @@ BOOST_AUTO_TEST_CASE(tx_invalid) {
                 mapprevOutScriptPubKeys[outpoint] =
                     ParseScript(vinput[2].get_str());
                 if (vinput.size() >= 4) {
-                    mapprevOutValues[outpoint] =
-                        vinput[3].get_int64() * SATOSHI;
+                    mapprevOutValues[outpoint] = Amount(vinput[3].get_int64());
                 }
             }
             if (!fValid) {
@@ -198,7 +192,7 @@ BOOST_AUTO_TEST_CASE(tx_invalid) {
                     break;
                 }
 
-                Amount amount = Amount::zero();
+                Amount amount(0);
                 if (0 != mapprevOutValues.count(tx.vin[i].prevout)) {
                     amount = mapprevOutValues[tx.vin[i].prevout];
                 }
@@ -332,7 +326,7 @@ void CreateCreditAndSpend(const CKeyStore &keystore, const CScript &outscript,
     outputm.vin[0].prevout = COutPoint();
     outputm.vin[0].scriptSig = CScript();
     outputm.vout.resize(1);
-    outputm.vout[0].nValue = SATOSHI;
+    outputm.vout[0].nValue = Amount(1);
     outputm.vout[0].scriptPubKey = outscript;
     CDataStream ssout(SER_NETWORK, PROTOCOL_VERSION);
     ssout << outputm;
@@ -347,7 +341,7 @@ void CreateCreditAndSpend(const CKeyStore &keystore, const CScript &outscript,
     inputm.vin.resize(1);
     inputm.vin[0].prevout = COutPoint(output->GetId(), 0);
     inputm.vout.resize(1);
-    inputm.vout[0].nValue = SATOSHI;
+    inputm.vout[0].nValue = Amount(1);
     inputm.vout[0].scriptPubKey = CScript();
     bool ret =
         SignSignature(keystore, *output, inputm, 0, SigHashType().withForkId());
@@ -431,13 +425,13 @@ BOOST_AUTO_TEST_CASE(test_big_transaction) {
         mtx.vin[i].prevout = outpoint;
         mtx.vin[i].scriptSig = CScript();
 
-        mtx.vout.emplace_back(1000 * SATOSHI, CScript() << OP_1);
+        mtx.vout.emplace_back(Amount(1000), CScript() << OP_1);
     }
 
     // sign all inputs
     for (size_t i = 0; i < mtx.vin.size(); i++) {
         bool hashSigned =
-            SignSignature(keystore, scriptPubKey, mtx, i, 1000 * SATOSHI,
+            SignSignature(keystore, scriptPubKey, mtx, i, Amount(1000),
                           sigHashes.at(i % sigHashes.size()));
         BOOST_CHECK_MESSAGE(hashSigned, "Failed to sign test transaction");
     }
@@ -458,7 +452,7 @@ BOOST_AUTO_TEST_CASE(test_big_transaction) {
     std::vector<Coin> coins;
     for (size_t i = 0; i < mtx.vin.size(); i++) {
         CTxOut out;
-        out.nValue = 1000 * SATOSHI;
+        out.nValue = Amount(1000);
         out.scriptPubKey = scriptPubKey;
         coins.emplace_back(std::move(out), 1, false);
     }
@@ -629,9 +623,9 @@ BOOST_AUTO_TEST_CASE(test_IsStandard) {
 
     // Check dust with default relay fee:
     Amount nDustThreshold = 3 * 182 * dustRelayFee.GetFeePerK() / 1000;
-    BOOST_CHECK_EQUAL(nDustThreshold, 546 * SATOSHI);
+    BOOST_CHECK_EQUAL(nDustThreshold, Amount(546));
     // dust:
-    t.vout[0].nValue = nDustThreshold - SATOSHI;
+    t.vout[0].nValue = nDustThreshold - Amount(1);
     BOOST_CHECK(!IsStandardTx(CTransaction(t), reason));
     // not dust:
     t.vout[0].nValue = nDustThreshold;
@@ -639,12 +633,12 @@ BOOST_AUTO_TEST_CASE(test_IsStandard) {
 
     // Check dust with odd relay fee to verify rounding:
     // nDustThreshold = 182 * 1234 / 1000 * 3
-    dustRelayFee = CFeeRate(1234 * SATOSHI);
+    dustRelayFee = CFeeRate(Amount(1234));
     // dust:
-    t.vout[0].nValue = (672 - 1) * SATOSHI;
+    t.vout[0].nValue = Amount(672 - 1);
     BOOST_CHECK(!IsStandardTx(CTransaction(t), reason));
     // not dust:
-    t.vout[0].nValue = 672 * SATOSHI;
+    t.vout[0].nValue = Amount(672);
     BOOST_CHECK(IsStandardTx(CTransaction(t), reason));
     dustRelayFee = CFeeRate(DUST_RELAY_TX_FEE);
 
@@ -761,23 +755,6 @@ BOOST_AUTO_TEST_CASE(test_IsStandard) {
     t.vout[0].scriptPubKey = CScript() << OP_RETURN;
     t.vout[1].scriptPubKey = CScript() << OP_RETURN;
     BOOST_CHECK(!IsStandardTx(CTransaction(t), reason));
-}
-
-BOOST_AUTO_TEST_CASE(txsize_activation_test) {
-    const Config &config = GetConfig();
-    const int64_t magneticAnomalyActivationTime =
-        config.GetChainParams().GetConsensus().magneticAnomalyActivationTime;
-
-    // A minimaly sized transction.
-    CTransaction minTx;
-    CValidationState state;
-
-    BOOST_CHECK(ContextualCheckTransaction(config, minTx, state, 1234, 5678,
-                                           magneticAnomalyActivationTime - 1));
-    BOOST_CHECK(!ContextualCheckTransaction(config, minTx, state, 1234, 5678,
-                                            magneticAnomalyActivationTime));
-    BOOST_CHECK_EQUAL(state.GetRejectCode(), REJECT_INVALID);
-    BOOST_CHECK_EQUAL(state.GetRejectReason(), "bad-txns-undersize");
 }
 
 BOOST_AUTO_TEST_SUITE_END()

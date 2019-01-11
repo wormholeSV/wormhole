@@ -913,7 +913,7 @@ bool createNewtransaction(CWallet *const pwallet, const std::string &address,
     }
 
     // Parse Bitcoin address
-	const CChainParams& params = GetConfig().GetChainParams();
+	const CChainParams& params = GlobalConfig::GetConfig().GetChainParams();
     CTxDestination dest = DecodeCashAddr(burnwhc_address, params);
     CScript scriptPubKey = GetScriptForDestination(dest);
     CTxDestination no = CNoDestination{};
@@ -1172,7 +1172,7 @@ UniValue whc_destroyERC721Token(const Config& config, const JSONRPCRequest& requ
     }
 }
 
-static const ContextFreeRPCCommand commands[] =
+static const CRPCCommand commands[] =
 { //  category                             name                            actor (function)               okSafeMode
   //  ------------------------------------ ------------------------------- ------------------------------ ----------
 #ifdef ENABLE_WALLET

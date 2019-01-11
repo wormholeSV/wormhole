@@ -103,7 +103,7 @@ UniValue whc_decodetransaction(const Config &config,const JSONRPCRequest &reques
         std::swap(view, viewTemp);
         uint256 blockHash;
         CTransactionRef txref;
-        GetTransaction(GetConfig(), tx.GetId(), txref, blockHash, true);
+        GetTransaction(GlobalConfig::GetConfig(), tx.GetId(), txref, blockHash, true);
         populateResult = populateRPCTransactionObject(tx, blockHash, txObj, "", false, "", blockHeight);
         // and restore the original, unpolluted coins view cache
         std::swap(viewTemp, view);
@@ -428,7 +428,7 @@ UniValue whc_createrawtx_change(const Config &config,const JSONRPCRequest &reque
     return EncodeHexTx(CTransaction(tx));
 }
 
-static const ContextFreeRPCCommand commands[] =
+static const CRPCCommand commands[] =
 { //  category                         name                          actor (function)             okSafeMode
   //  -------------------------------- ----------------------------- ---------------------------- ----------
     //change_003

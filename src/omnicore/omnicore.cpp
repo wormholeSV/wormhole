@@ -107,9 +107,9 @@ CCriticalSection cs_tally;
 static int nWaterlineBlock = 0;
 
 string burnwhc_address = "";
-string burnwhc_mainnet = "bitcoincash:qqqqqqqqqqqqqqqqqqqqqqqqqqqqqu08dsyxz98whc";
-string burnwhc_testnet = "bchtest:qqqqqqqqqqqqqqqqqqqqqqqqqqqqqdmwgvnjkt8whc";
-string burnwhc_regnet = "bchreg:pqqqqqqqqqqqqqqqqqqqqqqqqqqqqp0kvc457r8whc";
+string burnwhc_mainnet = "bitcoincash:qqqqqqqqqqqqqqqqqqqqqqqqqqqqq0y2vczns98wsv";
+string burnwhc_testnet = "bchtest:qqqqqqqqqqqqqqqqqqqqqqqqqqqqprhg3y9xp98wsv";
+string burnwhc_regnet = "bchreg:qqqqqqqqqqqqqqqqqqqqqqqqqqqqq40envjf028wsv";
 
 //! Available balances of wallet properties
 std::map<uint32_t, int64_t> global_balance_money;
@@ -738,7 +738,7 @@ int mastercore::GetEncodingClass(const CTransaction& tx, int nBlock)
      * Perform a string comparison on hex for each scriptPubKey & look directly for Exodus hash160 bytes or omni marker bytes
      * This allows to drop non-Omni transactions with less work
      */
-    std::string strClassC = "08776863";
+    std::string strClassC = "08777376";
     std::string strClassAB = "76a914946cb2e08075bcbaf157e47bcb67eb2b2339d24288ac";
     bool examineClosely = false;
     for (unsigned int n = 0; n < tx.vout.size(); ++n) {
@@ -864,7 +864,7 @@ static bool FillTxInputCache(const CTransaction& tx)
 
         CTransactionRef txPrev;
         uint256 hashBlock;
-        if (!GetTransaction(GetConfig(), txIn.prevout.GetTxId(), txPrev, hashBlock, true)) {
+        if (!GetTransaction(GlobalConfig::GetConfig(), txIn.prevout.GetTxId(), txPrev, hashBlock, true)) {
             return false;
         }
         if (txPrev.get()->vout.size() <= nOut){
@@ -887,7 +887,7 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
 {
     assert(bRPConly == mp_tx.isRpcOnly());
     mp_tx.Set(wtx.GetHash(), nBlock, idx, nTime);
-	const CChainParams& params = GetConfig().GetChainParams();
+	const CChainParams& params = GlobalConfig::GetConfig().GetChainParams();
 
     // ### CLASS IDENTIFICATION AND MARKER CHECK ###
     int omniClass = GetEncodingClass(wtx, nBlock);
@@ -1248,7 +1248,7 @@ static int msc_initial_scan(int nFirstBlock)
 
         if (!seedBlockFilterEnabled || !SkipBlock(nBlock)) {
             CBlock block;
-            if (!ReadBlockFromDisk(block, pblockindex, GetConfig())) break;
+            if (!ReadBlockFromDisk(block, pblockindex, GlobalConfig::GetConfig())) break;
 		    for(CTransactionRef& tx : block.vtx){
                 if (mastercore_handler_tx(*(tx.get()), nBlock, nTxNum, pblockindex)) ++nTxsFoundInBlock;
                 ++nTxNum;
@@ -2367,7 +2367,7 @@ int mastercore::WalletTxBuilder(const std::string& senderAddress, const std::str
     CReserveKey reserveKey(pwalletMain);
 
     // Next, we set the change address to the sender
-	const CChainParams& params = GetConfig().GetChainParams();
+	const CChainParams& params = GlobalConfig::GetConfig().GetChainParams();
 	coinControl.destChange = DecodeCashAddr(senderAddress, params);
     
 
@@ -2537,7 +2537,7 @@ bool CMPTxList::CheckForFreezeTxs(int blockHeight)
             uint256 blockHash;
             CTransactionRef wtx;
             CMPTransaction mp_obj;
-            if (!GetTransaction(GetConfig(), TxId(const_cast<const uint256&>(txid)), wtx, blockHash, true)) {
+            if (!GetTransaction(GlobalConfig::GetConfig(), TxId(const_cast<const uint256&>(txid)), wtx, blockHash, true)) {
                 PrintToLog("ERROR: While check for freeze transaction %s: tx in levelDB but does not exist.\n", txid.GetHex());
                 delete it;
                 return true;
@@ -2583,7 +2583,7 @@ bool CMPTxList::CheckForFreezeTxsBelowBlock(int blockHeight)
             uint256 blockHash;
             CTransactionRef wtx;
             CMPTransaction mp_obj;
-            if (!GetTransaction(GetConfig(), TxId(const_cast<const uint256&>(txid)), wtx, blockHash, true)) {
+            if (!GetTransaction(GlobalConfig::GetConfig(), TxId(const_cast<const uint256&>(txid)), wtx, blockHash, true)) {
                 PrintToLog("ERROR: While check for freeze transaction %s: tx in levelDB but does not exist.\n", txid.GetHex());
                 delete it;
                 return true;
@@ -2640,7 +2640,7 @@ bool CMPTxList::LoadFreezeState(int blockHeight)
         uint256 blockHash;
         CTransactionRef wtx;
         CMPTransaction mp_obj;
-        if (!GetTransaction(GetConfig(), TxId(const_cast<const uint256&>(hash)), wtx, blockHash, true)) {
+        if (!GetTransaction(GlobalConfig::GetConfig(), TxId(const_cast<const uint256&>(hash)), wtx, blockHash, true)) {
             PrintToLog("ERROR: While loading freeze transaction %s: tx in levelDB but does not exist.\n", hash.GetHex());
             return false;
         }
@@ -2712,7 +2712,7 @@ void CMPTxList::LoadActivations(int blockHeight)
         CTransactionRef wtx;
         CMPTransaction mp_obj;
 
-        if (!GetTransaction(GetConfig(), TxId(const_cast<const uint256&>(hash)), wtx, blockHash, true)) {
+        if (!GetTransaction(GlobalConfig::GetConfig(), TxId(const_cast<const uint256&>(hash)), wtx, blockHash, true)) {
             PrintToLog("ERROR: While loading activation transaction %s: tx in levelDB but does not exist.\n", hash.GetHex());
             continue;
         }
@@ -2779,7 +2779,7 @@ void CMPTxList::LoadAlerts(int blockHeight)
         uint256 blockHash;
         CTransactionRef wtx;
         CMPTransaction mp_obj;
-        if (!GetTransaction(GetConfig(), TxId(const_cast<const uint256&>(txid)), wtx, blockHash, true)) {
+        if (!GetTransaction(GlobalConfig::GetConfig(), TxId(const_cast<const uint256&>(txid)), wtx, blockHash, true)) {
             PrintToLog("ERROR: While loading alert %s: tx in levelDB but does not exist.\n", txid.GetHex());
             continue;
         }
@@ -4071,7 +4071,7 @@ int mastercore_handler_disc_end(int nBlockNow, CBlockIndex const * pBlockIndex)
  */
 const CTxDestination ExodusAddress()
 {
-	CChainParams param = GetConfig().GetChainParams();
+	CChainParams param = GlobalConfig::GetConfig().GetChainParams();
     if (MainNet()) {
  	    static CTxDestination mainAddress = DecodeCashAddr(burnwhc_mainnet , param);
         return mainAddress;
@@ -4098,7 +4098,7 @@ const CTxDestination ExodusAddress()
  */
 const CTxDestination ExodusCrowdsaleAddress(int nBlock)
 {
-	CChainParams param = GetConfig().GetChainParams();
+	CChainParams param = GlobalConfig::GetConfig().GetChainParams();
     if (MONEYMAN_REGTEST_BLOCK <= nBlock && RegTest()) {
 	    static CTxDestination moneyAddress = DecodeCashAddr(burnwhc_regnet, param);
         return moneyAddress;
@@ -4112,7 +4112,7 @@ const CTxDestination ExodusCrowdsaleAddress(int nBlock)
  */
 const std::vector<unsigned char> GetOmMarker()
 {
-    static unsigned char pch[] = {0x08, 0x77, 0x68, 0x63}; // Hex-encoded: "8whc"
+    static unsigned char pch[] = {0x08, 0x77, 0x73, 0x76}; // Hex-encoded: "8wsv"
 
     return std::vector<unsigned char>(pch, pch + sizeof(pch) / sizeof(pch[0]));
 }

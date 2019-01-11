@@ -30,5 +30,13 @@ bool IsValidDestinationString(const std::string &addr,
 }
 
 std::string EncodeDestination(const CTxDestination &dst) {
-    return EncodeDestination(dst, GetConfig());
+    return EncodeDestination(dst, GlobalConfig::GetConfig());
+}
+
+CTxDestination DecodeDestination(const std::string &addr) {
+    return DecodeDestination(addr, Params());
+}
+
+bool IsValidDestinationString(const std::string &addr) {
+    return IsValidDestinationString(addr, Params());
 }
